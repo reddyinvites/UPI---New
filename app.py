@@ -1,7 +1,7 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+from datetime import datetime, date
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -59,17 +59,47 @@ def get_points(phone):
     return 0
 
 
-# ---------------- UPDATE POINTS ----------------
+# ---------------- UPDATE POINTS (DAILY LIMIT) ----------------
 def update_points(phone):
+
+    today = str(date.today())
     row = find_row(phone)
 
     if row:
         current = int(sheet.cell(row, 2).value)
+
+        # handle optional columns safely
+        try:
+            last_date = sheet.cell(row, 3).value
+        except:
+            last_date = ""
+
+        try:
+            today_count = sheet.cell(row, 4).value
+            today_count = int(today_count) if today_count else 0
+        except:
+            today_count = 0
+
+        # reset if new day
+        if last_date != today:
+            today_count = 0
+
+        # ❌ limit reached
+        if today_count >= 3:
+            return "limit"
+
+        # ✅ allow
         new_points = current + 1
+        today_count += 1
+
         sheet.update_cell(row, 2, new_points)
+        sheet.update_cell(row, 3, today)
+        sheet.update_cell(row, 4, today_count)
+
         return new_points
+
     else:
-        sheet.append_row([phone, 1])
+        sheet.append_row([phone, 1, today, 1])
         return 1
 
 
@@ -133,19 +163,20 @@ if st.session_state.paid:
         else:
             new_points = update_points(phone)
 
-            # 🎯 MAIN REWARD UI
-            st.success(f"🔥 {new_points}/5 points collected")
+            if new_points == "limit":
+                st.warning("⛔ Daily limit reached (Max 3 teas/day)")
+            else:
+                st.success(f"🔥 {new_points}/5 points collected")
+                st.progress(min(new_points / 5, 1.0))
 
-            st.progress(min(new_points / 5, 1.0))
+                st.markdown(f"""
+                🎁 Only {max(0, 5 - new_points)} more for FREE TEA ☕
+                """)
 
-            st.markdown(f"""
-            🎁 Only {max(0, 5 - new_points)} more for FREE TEA ☕
-            """)
+                if new_points >= 5:
+                    st.success("🎉 FREE TEA unlocked!")
 
-            if new_points >= 5:
-                st.success("🎉 FREE TEA unlocked!")
-
-    # 👇 ALWAYS SHOW CURRENT STATUS (like your screenshot)
+    # show current total
     if phone and is_valid_phone(phone):
         current = get_points(phone)
 
