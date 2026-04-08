@@ -2,7 +2,7 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 
-st.set_page_config(page_title="Tea Loyalty", layout="centered")
+st.set_page_config(page_title="Ravi Tea", layout="centered")
 
 # ---------------- GOOGLE SHEETS ----------------
 scope = [
@@ -17,7 +17,6 @@ creds = Credentials.from_service_account_info(
 
 client = gspread.authorize(creds)
 
-# ✅ Use URL (your sheet)
 sheet = client.open_by_url(
     "https://docs.google.com/spreadsheets/d/1TUKZyDy-Ot2VtSuYln5XKz6ICPaZ5XOuYWKUdDSRHiI"
 ).sheet1
@@ -57,59 +56,97 @@ def update_points(phone):
             sheet.update_cell(i + 2, 2, new_points)
             return new_points
 
-    # New user
     sheet.append_row([phone, 1])
     return 1
 
 
-# ---------------- UI ----------------
-st.markdown(f"## {SHOP_NAME}")
-st.write(TAGLINE)
+# ---------------- PREMIUM UI ----------------
+st.markdown("""
+<style>
+.main {
+    background-color: #fff7ed;
+}
+.title {
+    text-align:center;
+    font-size:32px;
+    font-weight:bold;
+}
+.tag {
+    text-align:center;
+    color:gray;
+}
+.card {
+    background:white;
+    padding:20px;
+    border-radius:15px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.05);
+    margin-top:15px;
+}
+</style>
+""", unsafe_allow_html=True)
 
-st.divider()
+# HEADER
+st.markdown(f'<div class="title">{SHOP_NAME}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="tag">{TAGLINE}</div>', unsafe_allow_html=True)
 
-# PAY BUTTON
-st.link_button("💸 Pay with UPI", UPI_LINK)
-st.write("👇 After payment, confirm below")
+# ---------------- PAYMENT CARD ----------------
+st.markdown('<div class="card">', unsafe_allow_html=True)
 
-# PHONE INPUT
-phone = st.text_input(
-    "💾 Save rewards (WhatsApp number)",
-    placeholder="+91XXXXXXXXXX"
-)
+st.markdown("### 💸 Pay & Earn Rewards")
 
-# ---------------- PAYMENT ----------------
-if st.button("✅ I Paid"):
+st.link_button("👉 Pay with UPI", UPI_LINK)
 
-    if not is_valid_phone(phone):
-        st.error("❌ Enter valid number like +919876543210")
+st.caption("After payment, confirm below 👇")
 
-    else:
-        st.session_state.paid = True
-        points = update_points(phone)
+# PAYMENT BUTTON
+paid_click = st.button("✅ I Paid")
 
-        st.balloons()
-
-        st.markdown(f"""
-        ## 🎉 Payment Successful!
-
-        **at {SHOP_NAME}**
-
-        ✅ You earned 1 point  
-        🔥 Only {5 - points} more for FREE TEA ☕
-        """)
+st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ---------------- LOYALTY ----------------
-if phone and is_valid_phone(phone):
+# ---------------- SUCCESS FLOW ----------------
+if paid_click:
+    st.session_state.paid = True
 
-    current = get_points(phone)
+    st.balloons()
 
-    st.divider()
-    st.subheader("🎁 Your Rewards")
+    st.markdown(f"""
+    <div class="card">
+    <h3>🎉 Payment Successful!</h3>
+    <p><b>at {SHOP_NAME}</b></p>
+    <p>✅ You earned 1 point</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.progress(min(current / 5, 1.0))
-    st.write(f"🔥 {current}/5 points collected")
 
-    if current >= 5:
-        st.success("🎉 FREE TEA unlocked!")
+# ---------------- PHONE (AFTER REWARD) ----------------
+if st.session_state.paid:
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+
+    phone = st.text_input(
+        "💾 Save your rewards (WhatsApp)",
+        placeholder="+91XXXXXXXXXX"
+    )
+
+    if phone:
+
+        if not is_valid_phone(phone):
+            st.error("❌ Enter valid number like +919876543210")
+
+        else:
+            points = update_points(phone)
+
+            st.success(f"🔥 {points}/5 points collected")
+
+            st.progress(min(points / 5, 1.0))
+
+            if points >= 5:
+                st.success("🎉 FREE TEA unlocked!")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ---------------- FOOTER ----------------
+st.markdown("<br>", unsafe_allow_html=True)
+st.caption("Powered by Your Startup 🚀")
