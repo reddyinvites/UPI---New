@@ -23,7 +23,7 @@ sheet = client.open_by_url(
 ).sheet1
 
 
-# ---------------- SHOPS DATA ----------------
+# ---------------- SHOPS ----------------
 SHOPS = {
     "ravi-tea": {
         "name": "RAVI TEA ☕",
@@ -37,9 +37,15 @@ SHOPS = {
     }
 }
 
-# ---------------- GET SHOP ----------------
+# ---------------- GET SHOP FROM URL ----------------
 query = st.query_params
+
 shop_id = query.get("shop", "ravi-tea")
+
+# ⚠️ Important fix (string handling)
+if isinstance(shop_id, list):
+    shop_id = shop_id[0]
+
 shop = SHOPS.get(shop_id, SHOPS["ravi-tea"])
 
 SHOP_NAME = shop["name"]
@@ -162,7 +168,7 @@ if st.session_state.paid:
             if new_points >= 5:
                 st.success("🎉 FREE reward unlocked!")
 
-    # 👇 ALWAYS SHOW CURRENT STATUS
+    # show total
     if phone and is_valid_phone(phone):
         current = get_points(phone)
 
