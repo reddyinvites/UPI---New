@@ -16,7 +16,11 @@ creds = Credentials.from_service_account_info(
 )
 
 client = gspread.authorize(creds)
-sheet = client.open("TeaCustomers").sheet1
+
+# ✅ Use URL (your sheet)
+sheet = client.open_by_url(
+    "https://docs.google.com/spreadsheets/d/1TUKZyDy-Ot2VtSuYln5XKz6ICPaZ5XOuYWKUdDSRHiI"
+).sheet1
 
 
 # ---------------- SHOP INFO ----------------
@@ -35,7 +39,7 @@ def is_valid_phone(phone):
     return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
 
 
-# ---------------- GOOGLE SHEETS FUNCTIONS ----------------
+# ---------------- DB FUNCTIONS ----------------
 def get_points(phone):
     data = sheet.get_all_records()
     for row in data:
@@ -66,12 +70,15 @@ st.divider()
 
 # PAY BUTTON
 st.link_button("💸 Pay with UPI", UPI_LINK)
-
 st.write("👇 After payment, confirm below")
 
-# ---------------- PAYMENT ----------------
-phone = st.text_input("💾 Save rewards (WhatsApp number)", placeholder="+91XXXXXXXXXX")
+# PHONE INPUT
+phone = st.text_input(
+    "💾 Save rewards (WhatsApp number)",
+    placeholder="+91XXXXXXXXXX"
+)
 
+# ---------------- PAYMENT ----------------
 if st.button("✅ I Paid"):
 
     if not is_valid_phone(phone):
@@ -93,7 +100,7 @@ if st.button("✅ I Paid"):
         """)
 
 
-# ---------------- SHOW LOYALTY ----------------
+# ---------------- LOYALTY ----------------
 if phone and is_valid_phone(phone):
 
     current = get_points(phone)
