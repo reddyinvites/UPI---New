@@ -42,7 +42,7 @@ def is_valid_phone(phone):
     return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
 
 
-# ---------------- DB FUNCTIONS ----------------
+# ---------------- GET POINTS ----------------
 def get_points(phone):
     data = sheet.get_all_records()
     total = 0
@@ -54,16 +54,33 @@ def get_points(phone):
     return total
 
 
+# ---------------- UPDATE POINTS (NO DUPLICATES) ----------------
 def update_points(phone):
     data = sheet.get_all_records()
 
+    total = 0
+    main_row = None
+    delete_rows = []
+
     for i, row in enumerate(data):
         if row["Phone"] == phone:
-            new_points = row["Points"] + 1
-            sheet.update_cell(i + 2, 2, new_points)
-            return new_points
+            total += row["Points"]
 
-    # New user
+            if main_row is None:
+                main_row = i + 2
+            else:
+                delete_rows.append(i + 2)
+
+    # delete duplicate rows
+    for r in reversed(delete_rows):
+        sheet.delete_rows(r)
+
+    if main_row:
+        new_points = total + 1
+        sheet.update_cell(main_row, 2, new_points)
+        return new_points
+
+    # new user
     sheet.append_row([phone, 1])
     return 1
 
@@ -85,47 +102,17 @@ def can_click():
         return True
 
 
-# ---------------- UI STYLE ----------------
-st.markdown("""
-<style>
-.main {
-    background-color: #fff7ed;
-}
-.title {
-    text-align:center;
-    font-size:32px;
-    font-weight:bold;
-}
-.tag {
-    text-align:center;
-    color:gray;
-}
-.card {
-    background:white;
-    padding:20px;
-    border-radius:15px;
-    box-shadow:0 4px 10px rgba(0,0,0,0.05);
-    margin-top:15px;
-}
-</style>
-""", unsafe_allow_html=True)
+# ---------------- UI ----------------
+st.markdown(f"## {SHOP_NAME}")
+st.caption(TAGLINE)
 
-# HEADER
-st.markdown(f'<div class="title">{SHOP_NAME}</div>', unsafe_allow_html=True)
-st.markdown(f'<div class="tag">{TAGLINE}</div>', unsafe_allow_html=True)
+st.divider()
 
-# ---------------- PAYMENT ----------------
-st.markdown('<div class="card">', unsafe_allow_html=True)
-
-st.markdown("### 💸 Pay & Earn Rewards")
-
-st.link_button("👉 Pay with UPI", UPI_LINK)
-
+# PAY
+st.link_button("💸 Pay & Earn Rewards", UPI_LINK)
 st.caption("After payment, confirm below 👇")
 
 paid_click = st.button("✅ I Paid")
-
-st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ---------------- SUCCESS ----------------
@@ -135,22 +122,12 @@ if paid_click:
         st.error("⛔ Wait few seconds before clicking again")
     else:
         st.session_state.paid = True
-
         st.balloons()
-
-        st.markdown(f"""
-        <div class="card">
-        <h3>🎉 Payment Successful!</h3>
-        <p><b>at {SHOP_NAME}</b></p>
-        <p>✅ Payment received</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.success("🎉 Payment Successful!")
 
 
 # ---------------- SAVE + LOYALTY ----------------
 if st.session_state.paid:
-
-    st.markdown('<div class="card">', unsafe_allow_html=True)
 
     phone = st.text_input(
         "💾 Save points & get FREE tea 🎁",
@@ -163,27 +140,27 @@ if st.session_state.paid:
             st.error("❌ Enter valid number like +919876543210")
 
         else:
-            points = update_points(phone)
+            # update + get latest
+            update_points(phone)
+            current = get_points(phone)
 
-            st.success(f"🔥 {points}/5 points collected")
-
-            st.progress(min(points / 5, 1.0))
+            st.success(f"🔥 {current}/5 points collected")
+            st.progress(min(current / 5, 1.0))
 
             st.markdown(f"""
-            🎁 Only {max(0, 5 - points)} more for FREE TEA ☕
+            🎁 Only {max(0, 5 - current)} more for FREE TEA ☕
             """)
 
-            if points >= 5:
+            if current >= 5:
                 st.success("🎉 FREE TEA unlocked!")
 
-    # SHOW CURRENT POINTS ALWAYS
+    # ALWAYS SHOW CURRENT STATUS
     if phone and is_valid_phone(phone):
         current = get_points(phone)
 
-        st.progress(min(current / 5, 1.0))
+        st.divider()
         st.write(f"🔥 Total: {current}/5 points")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.progress(min(current / 5, 1.0))
 
 
 # ---------------- FOOTER ----------------
