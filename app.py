@@ -1,6 +1,7 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
+from datetime import datetime
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -31,6 +32,9 @@ UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 # ---------------- SESSION ----------------
 if "paid" not in st.session_state:
     st.session_state.paid = False
+
+if "last_click_time" not in st.session_state:
+    st.session_state.last_click_time = None
 
 
 # ---------------- VALIDATION ----------------
@@ -98,38 +102,58 @@ st.link_button("👉 Pay with UPI", UPI_LINK)
 
 st.caption("After payment, confirm below 👇")
 
-# PAYMENT BUTTON
 paid_click = st.button("✅ I Paid")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
 
+# ---------------- FRAUD PREVENTION ----------------
+def can_click():
+    now = datetime.now()
+
+    if st.session_state.last_click_time is None:
+        st.session_state.last_click_time = now
+        return True
+
+    diff = (now - st.session_state.last_click_time).seconds
+
+    if diff < 10:  # 10 sec lock
+        return False
+    else:
+        st.session_state.last_click_time = now
+        return True
+
+
 # ---------------- SUCCESS FLOW ----------------
 if paid_click:
-    st.session_state.paid = True
 
-    st.balloons()
+    if not can_click():
+        st.error("⛔ Wait few seconds before clicking again")
+    else:
+        st.session_state.paid = True
 
-    st.markdown(f"""
-    <div class="card">
-    <h3>🎉 Payment Successful!</h3>
-    <p><b>at {SHOP_NAME}</b></p>
-    <p>✅ You earned 1 point</p>
-    </div>
-    """, unsafe_allow_html=True)
+        st.balloons()
+
+        st.markdown(f"""
+        <div class="card">
+        <h3>🎉 Payment Successful!</h3>
+        <p><b>at {SHOP_NAME}</b></p>
+        <p>✅ Payment received</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 
-# ---------------- PHONE (AFTER REWARD) ----------------
+# ---------------- SAVE + POINTS ----------------
 if st.session_state.paid:
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     phone = st.text_input(
-        "💾 Save your rewards (WhatsApp)",
+        "💾 Save points & get FREE tea 🎁",
         placeholder="+91XXXXXXXXXX"
     )
 
-    if phone:
+    if st.button("💾 Save Rewards"):
 
         if not is_valid_phone(phone):
             st.error("❌ Enter valid number like +919876543210")
@@ -138,8 +162,11 @@ if st.session_state.paid:
             points = update_points(phone)
 
             st.success(f"🔥 {points}/5 points collected")
-
             st.progress(min(points / 5, 1.0))
+
+            st.markdown(f"""
+            🎁 Only {5 - points} more for FREE TEA ☕
+            """)
 
             if points >= 5:
                 st.success("🎉 FREE TEA unlocked!")
