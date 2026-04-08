@@ -107,7 +107,14 @@ if st.button("✅ I Paid"):
     else:
         st.session_state.paid = True
         st.balloons()
-        st.success("🎉 Payment Successful!")
+
+        st.markdown(f"""
+        ### 🎉 Payment Successful!
+
+        **at {SHOP_NAME}**
+
+        ✅ You earned 1 point  
+        """)
 
 
 # ---------------- SAVE + SHOW POINTS ----------------
@@ -126,7 +133,9 @@ if st.session_state.paid:
         else:
             new_points = update_points(phone)
 
+            # 🎯 MAIN REWARD UI
             st.success(f"🔥 {new_points}/5 points collected")
+
             st.progress(min(new_points / 5, 1.0))
 
             st.markdown(f"""
@@ -136,7 +145,13 @@ if st.session_state.paid:
             if new_points >= 5:
                 st.success("🎉 FREE TEA unlocked!")
 
-            st.rerun()
+    # 👇 ALWAYS SHOW CURRENT STATUS (like your screenshot)
+    if phone and is_valid_phone(phone):
+        current = get_points(phone)
+
+        st.markdown("---")
+        st.write(f"🔥 Total: {current}/5 points")
+        st.progress(min(current / 5, 1.0))
 
 
 # ---------------- FOOTER ----------------
