@@ -44,28 +44,23 @@ def is_valid_phone(phone):
 
 # ---------------- FIND ROW ----------------
 def find_row(phone):
-    phones = sheet.col_values(1)  # Column A
-
+    phones = sheet.col_values(1)
     for i, val in enumerate(phones):
         if val == phone:
-            return i + 1  # Row number
-
+            return i + 1
     return None
 
 
 # ---------------- GET POINTS ----------------
 def get_points(phone):
     row = find_row(phone)
-
     if row:
         return int(sheet.cell(row, 2).value)
-
     return 0
 
 
 # ---------------- UPDATE POINTS ----------------
 def update_points(phone):
-
     row = find_row(phone)
 
     if row:
@@ -73,7 +68,6 @@ def update_points(phone):
         new_points = current + 1
         sheet.update_cell(row, 2, new_points)
         return new_points
-
     else:
         sheet.append_row([phone, 1])
         return 1
@@ -102,15 +96,11 @@ st.caption(TAGLINE)
 
 st.divider()
 
-# PAY
+# ---------------- PAYMENT ----------------
 st.link_button("💸 Pay & Earn Rewards", UPI_LINK)
 st.caption("After payment, confirm below 👇")
 
-paid_click = st.button("✅ I Paid")
-
-
-# ---------------- SUCCESS ----------------
-if paid_click:
+if st.button("✅ I Paid"):
 
     if not can_click():
         st.error("⛔ Wait few seconds before clicking again")
@@ -120,7 +110,7 @@ if paid_click:
         st.success("🎉 Payment Successful!")
 
 
-# ---------------- SAVE + LOYALTY ----------------
+# ---------------- SAVE + SHOW POINTS ----------------
 if st.session_state.paid:
 
     phone = st.text_input(
@@ -134,35 +124,19 @@ if st.session_state.paid:
             st.error("❌ Enter valid number like +919876543210")
 
         else:
-            update_points(phone)
-            st.success("✅ Points saved!")
+            new_points = update_points(phone)
 
-            st.rerun()  # 🔥 force refresh
+            st.success(f"🔥 {new_points}/5 points collected")
+            st.progress(min(new_points / 5, 1.0))
 
+            st.markdown(f"""
+            🎁 Only {max(0, 5 - new_points)} more for FREE TEA ☕
+            """)
 
-# ---------------- SHOW CURRENT STATUS ----------------
-if st.session_state.paid:
+            if new_points >= 5:
+                st.success("🎉 FREE TEA unlocked!")
 
-    phone = st.text_input(
-        "Enter your number to check points",
-        placeholder="+91XXXXXXXXXX",
-        key="check"
-    )
-
-    if phone and is_valid_phone(phone):
-
-        current = get_points(phone)
-
-        st.divider()
-        st.write(f"🔥 Total: {current}/5 points")
-        st.progress(min(current / 5, 1.0))
-
-        st.markdown(f"""
-        🎁 Only {max(0, 5 - current)} more for FREE TEA ☕
-        """)
-
-        if current >= 5:
-            st.success("🎉 FREE TEA unlocked!")
+            st.rerun()
 
 
 # ---------------- FOOTER ----------------
