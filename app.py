@@ -3,7 +3,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
-st.set_page_config(page_title="Ravi Tea", layout="centered")
+st.set_page_config(page_title="Rewards App", layout="centered")
 
 # ---------------- GOOGLE SHEETS ----------------
 scope = [
@@ -23,10 +23,28 @@ sheet = client.open_by_url(
 ).sheet1
 
 
-# ---------------- SHOP INFO ----------------
-SHOP_NAME = "RAVI TEA ☕"
-TAGLINE = "Morning kick chai 🔥"
-UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
+# ---------------- SHOPS DATA ----------------
+SHOPS = {
+    "ravi-tea": {
+        "name": "RAVI TEA ☕",
+        "tagline": "Morning kick chai 🔥",
+        "upi": "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
+    },
+    "juice-corner": {
+        "name": "JUICE CORNER 🧃",
+        "tagline": "Fresh & Healthy 🍊",
+        "upi": "upi://pay?pa=yourupi@upi&pn=JuiceCorner&cu=INR"
+    }
+}
+
+# ---------------- GET SHOP ----------------
+query = st.query_params
+shop_id = query.get("shop", "ravi-tea")
+shop = SHOPS.get(shop_id, SHOPS["ravi-tea"])
+
+SHOP_NAME = shop["name"]
+TAGLINE = shop["tagline"]
+UPI_LINK = shop["upi"]
 
 
 # ---------------- SESSION ----------------
@@ -121,7 +139,7 @@ if st.button("✅ I Paid"):
 if st.session_state.paid:
 
     phone = st.text_input(
-        "💾 Save points & get FREE tea 🎁",
+        "💾 Save points & get FREE reward 🎁",
         placeholder="+91XXXXXXXXXX"
     )
 
@@ -133,19 +151,18 @@ if st.session_state.paid:
         else:
             new_points = update_points(phone)
 
-            # 🎯 MAIN REWARD UI
             st.success(f"🔥 {new_points}/5 points collected")
 
             st.progress(min(new_points / 5, 1.0))
 
             st.markdown(f"""
-            🎁 Only {max(0, 5 - new_points)} more for FREE TEA ☕
+            🎁 Only {max(0, 5 - new_points)} more for FREE reward 🎁
             """)
 
             if new_points >= 5:
-                st.success("🎉 FREE TEA unlocked!")
+                st.success("🎉 FREE reward unlocked!")
 
-    # 👇 ALWAYS SHOW CURRENT STATUS (like your screenshot)
+    # 👇 ALWAYS SHOW CURRENT STATUS
     if phone and is_valid_phone(phone):
         current = get_points(phone)
 
