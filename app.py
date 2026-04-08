@@ -33,9 +33,6 @@ COOLDOWN_MINUTES = 120
 if "paid" not in st.session_state:
     st.session_state.paid = False
 
-if "points" not in st.session_state:
-    st.session_state.points = 0
-
 # ---------------- VALIDATION ----------------
 def is_valid_phone(phone):
     return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
@@ -44,7 +41,7 @@ def is_valid_phone(phone):
 def get_user_row(phone):
     data = sheet.get_all_records()
     for i, row in enumerate(data):
-        if row["Phone"] == phone:
+        if str(row["Phone"]).strip() == phone.strip():
             return i + 2, row
     return None, None
 
@@ -53,7 +50,7 @@ def update_points(phone):
     now = datetime.now()
 
     if row:
-        current_points = row["Points"]
+        current_points = int(row["Points"])
         last_time = row.get("LastTime")
 
         # 🔒 STOP AFTER 5
@@ -99,8 +96,9 @@ phone = st.text_input(
 # ---------------- MAIN LOGIC ----------------
 if phone and is_valid_phone(phone):
 
+    # 🔥 ALWAYS READ FROM SHEET (IMPORTANT FIX)
     row_index, row = get_user_row(phone)
-    points = row["Points"] if row else 0
+    points = int(row["Points"]) if row else 0
     points = min(points, 5)
 
     # 🎉 FREE TEA STATE
@@ -111,7 +109,7 @@ if phone and is_valid_phone(phone):
         if st.button("☕ Redeem Free Tea"):
             redeem_reward(phone)
             st.success("✅ Redeemed! Start again 🔥")
-            st.session_state.points = 0
+            st.rerun()  # 🔥 refresh UI
 
     # 💸 NORMAL STATE
     else:
@@ -127,7 +125,6 @@ if phone and is_valid_phone(phone):
             if st.button("💾 Save Rewards"):
 
                 new_points, success, wait = update_points(phone)
-                st.session_state.points = new_points
 
                 if not success and wait:
                     st.warning(f"⏳ Come back in {wait} mins")
@@ -135,22 +132,20 @@ if phone and is_valid_phone(phone):
                 elif success:
                     st.success("🎉 Payment Successful!")
                     st.write("✅ You earned 1 point")
+                    st.rerun()  # 🔥 refresh UI
 
     # ---------------- REWARDS ----------------
     st.divider()
     st.subheader("🎁 Your Rewards")
 
-    display_points = st.session_state.points if st.session_state.points else points
-    display_points = min(display_points, 5)
+    st.progress(points / 5)
+    st.write(f"🔥 {points}/5 points collected")
 
-    st.progress(display_points / 5)
-    st.write(f"🔥 {display_points}/5 points collected")
-
-    if display_points < 5:
-        remaining = 5 - display_points
+    if points < 5:
+        remaining = 5 - points
         st.write(f"🔥 Just {remaining} more tea to get FREE TEA ☕")
 
-    if display_points >= 5:
+    if points >= 5:
         st.success("🎉 FREE TEA unlocked!")
 
 elif phone:
