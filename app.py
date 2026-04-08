@@ -62,7 +62,6 @@ def find_row(phone):
     for i, val in enumerate(phones):
         if clean_phone(val) == phone:
             return i + 1
-
     return None
 
 
@@ -90,7 +89,6 @@ def update_points(phone):
             last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S")
             diff = now - last_time
 
-            # ⛔ COOLDOWN (2 hours)
             if diff < timedelta(hours=2):
                 remaining = timedelta(hours=2) - diff
                 return current_points, False, remaining
@@ -113,6 +111,16 @@ def update_points(phone):
         ])
 
         return 1, True, None
+
+
+# ---------------- RESET (REDEEM) ----------------
+def reset_points(phone):
+    row = find_row(phone)
+    if row:
+        sheet.update_cell(row, 2, 0)
+        sheet.update_cell(row, 3, "")
+        return True
+    return False
 
 
 # ---------------- FRAUD CLICK ----------------
@@ -173,16 +181,21 @@ if st.session_state.paid:
 
     phone_clean = clean_phone(phone)
 
-    # 👉 CHECK EXISTING POINTS
     current_points, _ = get_data(phone_clean) if phone else (0, None)
 
-    # 🔥 IF ALREADY 5 POINTS
+    # 🔥 IF 5 POINTS → SHOW REDEEM
     if phone and current_points >= 5:
 
         st.success("🎉 FREE TEA unlocked!")
         st.markdown("👉 Show this screen to shop owner ☕")
 
-        # store in session
+        if st.button("🎁 Redeem FREE TEA"):
+
+            if reset_points(phone_clean):
+                st.success("✅ Tea claimed successfully!")
+                st.session_state.points = 0
+                st.rerun()
+
         st.session_state.phone = phone_clean
         st.session_state.points = current_points
 
