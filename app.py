@@ -36,6 +36,12 @@ if "paid" not in st.session_state:
 if "last_click_time" not in st.session_state:
     st.session_state.last_click_time = None
 
+if "phone" not in st.session_state:
+    st.session_state.phone = ""
+
+if "points" not in st.session_state:
+    st.session_state.points = 0
+
 
 # ---------------- VALIDATION ----------------
 def is_valid_phone(phone):
@@ -45,18 +51,12 @@ def is_valid_phone(phone):
 # ---------------- FIND ROW ----------------
 def find_row(phone):
     phones = sheet.col_values(1)
+
     for i, val in enumerate(phones):
-        if val == phone:
+        if val.strip() == phone.strip():
             return i + 1
+
     return None
-
-
-# ---------------- GET POINTS ----------------
-def get_points(phone):
-    row = find_row(phone)
-    if row:
-        return int(sheet.cell(row, 2).value)
-    return 0
 
 
 # ---------------- UPDATE POINTS ----------------
@@ -68,12 +68,13 @@ def update_points(phone):
         new_points = current + 1
         sheet.update_cell(row, 2, new_points)
         return new_points
+
     else:
         sheet.append_row([phone, 1])
         return 1
 
 
-# ---------------- FRAUD PREVENTION ----------------
+# ---------------- FRAUD ----------------
 def can_click():
     now = datetime.now()
 
@@ -120,53 +121,46 @@ if st.button("✅ I Paid"):
         """)
 
 
-# ---------------- SAVE + REWARDS ----------------
+# ---------------- SAVE ----------------
 if st.session_state.paid:
 
     phone = st.text_input(
         "💾 Save your rewards (WhatsApp number)",
+        value=st.session_state.phone,
         placeholder="+91XXXXXXXXXX"
     )
 
     if st.button("💾 Save Rewards"):
 
         if not is_valid_phone(phone):
-            st.error("❌ Enter valid number like +919876543210")
+            st.error("❌ Enter valid number")
 
         else:
-            points = update_points(phone)
+            new_points = update_points(phone)
 
-            st.success(f"🔥 {points}/5 points collected")
-            st.progress(min(points / 5, 1.0))
-
-            # 🔥 NEW SMART MESSAGE
-            remaining = max(0, 5 - points)
-
-            if remaining > 0:
-                st.markdown(
-                    f"🔥 Just {remaining} more tea{'s' if remaining > 1 else ''} to get FREE TEA ☕"
-                )
-            else:
-                st.markdown("🎉 FREE TEA unlocked! ☕")
-
-            if points >= 5:
-                st.success("🎉 FREE TEA unlocked!")
+            # SAVE TO SESSION (IMPORTANT)
+            st.session_state.phone = phone
+            st.session_state.points = new_points
 
             st.rerun()
 
 
-# ---------------- SHOW REWARDS ALWAYS ----------------
-if st.session_state.paid and phone and is_valid_phone(phone):
+# ---------------- SHOW REWARDS (STABLE) ----------------
+if st.session_state.phone:
 
-    current = get_points(phone)
+    points = st.session_state.points
 
     st.divider()
     st.subheader("🎁 Your Rewards")
 
-    st.progress(min(current / 5, 1.0))
-    st.write(f"🔥 {current}/5 points collected")
+    st.progress(min(points / 5, 1.0))
+    st.write(f"🔥 {points}/5 points collected")
 
-    if current >= 5:
+    remaining = max(0, 5 - points)
+
+    if remaining > 0:
+        st.markdown(f"🔥 Just {remaining} more tea{'s' if remaining > 1 else ''} to get FREE TEA ☕")
+    else:
         st.success("🎉 FREE TEA unlocked!")
 
 
