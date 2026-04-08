@@ -1,152 +1,137 @@
 import streamlit as st
+import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+from datetime import datetime, timedelta
 
-st.set_page_config(page_title="Tea Loyalty", layout="centered")
+st.set_page_config(page_title="RAVI TEA ☕", layout="centered")
+
+st.title("RAVI TEA ☕")
+st.caption("Morning kick chai 🔥")
 
 # ---------------- GOOGLE SHEETS ----------------
 scope = [
-    "https://www.googleapis.com/auth/spreadsheets",
+    "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
 ]
 
 creds = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"],
-    scopes=scope
+    st.secrets["gcp_service_account"], scopes=scope
 )
 
 client = gspread.authorize(creds)
+sheet = client.open_by_key("YOUR_SHEET_ID").sheet1
 
-sheet = client.open_by_url(
-    "https://docs.google.com/spreadsheets/d/1TUKZyDy-Ot2VtSuYln5XKz6ICPaZ5XOuYWKUdDSRHiI"
-).sheet1
 
-# ---------------- SHOP INFO ----------------
-SHOP_NAME = "RAVI TEA ☕"
-TAGLINE = "Morning kick chai 🔥"
-UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
+# ---------------- HELPERS ----------------
 
-COOLDOWN_MINUTES = 120
+def normalize(phone):
+    return phone.replace("+91", "").replace(" ", "").strip()
 
-# ---------------- SESSION ----------------
-if "paid" not in st.session_state:
-    st.session_state.paid = False
 
-# ---------------- VALIDATION ----------------
-def is_valid_phone(phone):
-    return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
-
-# ---------------- DB FUNCTIONS ----------------
 def get_user_row(phone):
     data = sheet.get_all_records()
+
     for i, row in enumerate(data):
-        if str(row["Phone"]).strip() == phone.strip():
-            return i + 2, row
+        if normalize(str(row["Phone"])) == normalize(str(phone)):
+            return i + 2, row  # row index + header
+
     return None, None
 
-def update_points(phone):
-    row_index, row = get_user_row(phone)
-    now = datetime.now()
 
+def get_points(phone):
+    _, row = get_user_row(phone)
     if row:
-        current_points = int(row["Points"])
-        last_time = row.get("LastTime")
+        return int(row.get("Points", 0))
+    return 0
 
-        # 🔒 STOP AFTER 5
-        if current_points >= 5:
-            return 5, False, None
 
-        # ⏱ COOLDOWN
-        if last_time:
-            last_time = datetime.fromisoformat(last_time)
-            diff = (now - last_time).total_seconds() / 60
+def update_points(phone, new_points):
+    row_index, _ = get_user_row(phone)
 
-            if diff < COOLDOWN_MINUTES:
-                return current_points, False, int(COOLDOWN_MINUTES - diff)
-
-        new_points = current_points + 1
-
+    if row_index:
         sheet.update_cell(row_index, 2, new_points)
-        sheet.update_cell(row_index, 3, now.isoformat())
-
-        return new_points, True, None
-
+        sheet.update_cell(row_index, 3, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     else:
-        sheet.append_row([phone, 1, now.isoformat()])
-        return 1, True, None
+        sheet.append_row([
+            phone,
+            new_points,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ])
 
-def redeem_reward(phone):
-    row_index, row = get_user_row(phone)
-    if row:
-        sheet.update_cell(row_index, 2, 0)
+
+def get_last_time(phone):
+    _, row = get_user_row(phone)
+    if row and row.get("LastTime"):
+        return datetime.strptime(row["LastTime"], "%Y-%m-%d %H:%M:%S")
+    return None
+
 
 # ---------------- UI ----------------
-st.markdown(f"## {SHOP_NAME}")
-st.write(TAGLINE)
 
-st.divider()
+phone = st.text_input("📱 Enter your number", placeholder="+91XXXXXXXXXX")
 
-# ---------------- PHONE INPUT ----------------
-phone = st.text_input(
-    "📱 Enter your number",
-    placeholder="+91XXXXXXXXXX"
-)
+st.markdown("## 💸 Pay & Earn Rewards")
+st.button("👉 Pay with UPI")
 
-# ---------------- MAIN LOGIC ----------------
-if phone and is_valid_phone(phone):
+paid = st.button("✅ I Paid")
 
-    # 🔥 ALWAYS READ FROM SHEET (IMPORTANT FIX)
-    row_index, row = get_user_row(phone)
-    points = int(row["Points"]) if row else 0
-    points = min(points, 5)
+# ---------------- LOGIC ----------------
 
-    # 🎉 FREE TEA STATE
+if phone:
+
+    points = get_points(phone)
+    last_time = get_last_time(phone)
+
+    cooldown_minutes = 30
+
+    allow = True
+    remaining = 0
+
+    if last_time:
+        diff = datetime.now() - last_time
+        if diff < timedelta(minutes=cooldown_minutes):
+            allow = False
+            remaining = int((timedelta(minutes=cooldown_minutes) - diff).total_seconds() // 60)
+
+    # 🎁 FREE TEA MODE
     if points >= 5:
         st.success("🎉 FREE TEA unlocked!")
-        st.markdown("👉 Show this to shop owner ☕")
+        st.info("👉 Show this screen to shop owner ☕")
 
-        if st.button("☕ Redeem Free Tea"):
-            redeem_reward(phone)
-            st.success("✅ Redeemed! Start again 🔥")
-            st.rerun()  # 🔥 refresh UI
+        st.markdown("## 🎁 Your Rewards")
+        st.progress(1.0)
+        st.success("🔥 5/5 points collected")
 
-    # 💸 NORMAL STATE
     else:
-        st.subheader("💸 Pay & Earn Rewards")
 
-        st.link_button("👉 Pay with UPI", UPI_LINK)
-        st.write("👇 After payment, confirm below")
+        # ---------------- PAYMENT ----------------
+        if paid:
 
-        if st.button("✅ I Paid"):
-            st.session_state.paid = True
+            if not allow:
+                st.warning(f"⏳ Come back in {remaining} mins for next reward ☕")
 
-        if st.session_state.paid:
-            if st.button("💾 Save Rewards"):
+            else:
+                points += 1
+                update_points(phone, points)
 
-                new_points, success, wait = update_points(phone)
+                st.success("🎉 Payment Successful!")
+                st.write("✅ You earned 1 point")
 
-                if not success and wait:
-                    st.warning(f"⏳ Come back in {wait} mins")
+                if points >= 5:
+                    st.success("🔥 Completed 5 → get FREE TEA ☕")
+                else:
+                    st.info(f"🔥 Only {5 - points} more for FREE TEA ☕")
 
-                elif success:
-                    st.success("🎉 Payment Successful!")
-                    st.write("✅ You earned 1 point")
-                    st.rerun()  # 🔥 refresh UI
+        # ---------------- REWARDS ----------------
+        points = get_points(phone)  # refresh
 
-    # ---------------- REWARDS ----------------
-    st.divider()
-    st.subheader("🎁 Your Rewards")
+        st.markdown("## 🎁 Your Rewards")
 
-    st.progress(points / 5)
-    st.write(f"🔥 {points}/5 points collected")
+        progress = min(points / 5, 1.0)
+        st.progress(progress)
 
-    if points < 5:
-        remaining = 5 - points
-        st.write(f"🔥 Just {remaining} more tea to get FREE TEA ☕")
+        st.write(f"🔥 {points}/5 points collected")
 
-    if points >= 5:
-        st.success("🎉 FREE TEA unlocked!")
-
-elif phone:
-    st.error("❌ Enter valid number like +919876543210")
+        if points < 5:
+            st.write(f"🔥 Just {5 - points} more teas to get FREE TEA ☕")
