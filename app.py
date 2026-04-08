@@ -139,9 +139,15 @@ if st.session_state.paid:
             st.success(f"🔥 {points}/5 points collected")
             st.progress(min(points / 5, 1.0))
 
-            st.markdown(f"""
-            🔥 Only {max(0, 5 - points)} more for FREE TEA ☕
-            """)
+            # 🔥 NEW SMART MESSAGE
+            remaining = max(0, 5 - points)
+
+            if remaining > 0:
+                st.markdown(
+                    f"🔥 Just {remaining} more tea{'s' if remaining > 1 else ''} to get FREE TEA ☕"
+                )
+            else:
+                st.markdown("🎉 FREE TEA unlocked! ☕")
 
             if points >= 5:
                 st.success("🎉 FREE TEA unlocked!")
