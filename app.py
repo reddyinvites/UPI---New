@@ -1,106 +1,152 @@
 import streamlit as st
-import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime, timedelta
+from datetime import datetime
 
-st.set_page_config(page_title="RAVI TEA ☕", layout="centered")
-
-st.title("RAVI TEA ☕")
-st.write("Morning kick chai 🔥")
+st.set_page_config(page_title="Tea Loyalty", layout="centered")
 
 # ---------------- GOOGLE SHEETS ----------------
-scope = ["https://www.googleapis.com/auth/spreadsheets"]
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
 creds = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"], scopes=scope
+    st.secrets["gcp_service_account"],
+    scopes=scope
 )
+
 client = gspread.authorize(creds)
 
-SHEET_ID = "YOUR_SHEET_ID"
-sheet = client.open_by_key(SHEET_ID).sheet1
+sheet = client.open_by_url(
+    "https://docs.google.com/spreadsheets/d/1TUKZyDy-Ot2VtSuYln5XKz6ICPaZ5XOuYWKUdDSRHiI"
+).sheet1
 
-# ---------------- NORMALIZE FUNCTION (FIX) ----------------
-def normalize(phone):
-    return str(phone).replace("+91", "").replace(" ", "").strip()
+# ---------------- SHOP INFO ----------------
+SHOP_NAME = "RAVI TEA ☕"
+TAGLINE = "Morning kick chai 🔥"
+UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 
-# ---------------- GET USER ----------------
+COOLDOWN_MINUTES = 120
+
+# ---------------- SESSION ----------------
+if "paid" not in st.session_state:
+    st.session_state.paid = False
+
+# ---------------- VALIDATION ----------------
+def is_valid_phone(phone):
+    return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
+
+# ---------------- DB FUNCTIONS ----------------
 def get_user_row(phone):
     data = sheet.get_all_records()
-
     for i, row in enumerate(data):
-        sheet_phone = normalize(row["Phone"])
-        input_phone = normalize(phone)
-
-        if sheet_phone == input_phone:
+        if str(row["Phone"]).strip() == phone.strip():
             return i + 2, row
-
     return None, None
 
-# ---------------- UI ----------------
-phone = st.text_input("📱 Enter your number", placeholder="+91XXXXXXXXXX")
+def update_points(phone):
+    row_index, row = get_user_row(phone)
+    now = datetime.now()
 
-st.markdown("---")
+    if row:
+        current_points = int(row["Points"])
+        last_time = row.get("LastTime")
 
-st.subheader("💸 Pay & Earn Rewards")
+        # 🔒 STOP AFTER 5
+        if current_points >= 5:
+            return 5, False, None
 
-st.button("👉 Pay with UPI")
+        # ⏱ COOLDOWN
+        if last_time:
+            last_time = datetime.fromisoformat(last_time)
+            diff = (now - last_time).total_seconds() / 60
 
-st.write("👇 After payment, confirm below")
+            if diff < COOLDOWN_MINUTES:
+                return current_points, False, int(COOLDOWN_MINUTES - diff)
 
-paid = st.button("✅ I Paid")
+        new_points = current_points + 1
 
-# ---------------- MAIN LOGIC ----------------
-if phone:
-    row_index, user = get_user_row(phone)
+        sheet.update_cell(row_index, 2, new_points)
+        sheet.update_cell(row_index, 3, now.isoformat())
 
-    # Existing user
-    if user:
-        points = int(user["Points"])
-        last_time = user.get("LastTime", "")
+        return new_points, True, None
 
     else:
-        points = 0
-        last_time = ""
+        sheet.append_row([phone, 1, now.isoformat()])
+        return 1, True, None
 
-    # ---------------- PAYMENT ----------------
-    if paid:
-        if row_index:
-            # Update existing
-            new_points = points + 1
-            sheet.update_cell(row_index, 2, new_points)
-            sheet.update_cell(row_index, 3, str(datetime.now()))
-        else:
-            # New user
-            sheet.append_row([phone, 1, str(datetime.now())])
-            new_points = 1
+def redeem_reward(phone):
+    row_index, row = get_user_row(phone)
+    if row:
+        sheet.update_cell(row_index, 2, 0)
 
-        st.success("🎉 Payment Successful!")
-        st.write("✅ You earned 1 point")
+# ---------------- UI ----------------
+st.markdown(f"## {SHOP_NAME}")
+st.write(TAGLINE)
 
-        # Refresh values
-        points = new_points
+st.divider()
 
-    # ---------------- REWARDS DISPLAY ----------------
-    st.markdown("---")
+# ---------------- PHONE INPUT ----------------
+phone = st.text_input(
+    "📱 Enter your number",
+    placeholder="+91XXXXXXXXXX"
+)
+
+# ---------------- MAIN LOGIC ----------------
+if phone and is_valid_phone(phone):
+
+    # 🔥 ALWAYS READ FROM SHEET (IMPORTANT FIX)
+    row_index, row = get_user_row(phone)
+    points = int(row["Points"]) if row else 0
+    points = min(points, 5)
+
+    # 🎉 FREE TEA STATE
+    if points >= 5:
+        st.success("🎉 FREE TEA unlocked!")
+        st.markdown("👉 Show this to shop owner ☕")
+
+        if st.button("☕ Redeem Free Tea"):
+            redeem_reward(phone)
+            st.success("✅ Redeemed! Start again 🔥")
+            st.rerun()  # 🔥 refresh UI
+
+    # 💸 NORMAL STATE
+    else:
+        st.subheader("💸 Pay & Earn Rewards")
+
+        st.link_button("👉 Pay with UPI", UPI_LINK)
+        st.write("👇 After payment, confirm below")
+
+        if st.button("✅ I Paid"):
+            st.session_state.paid = True
+
+        if st.session_state.paid:
+            if st.button("💾 Save Rewards"):
+
+                new_points, success, wait = update_points(phone)
+
+                if not success and wait:
+                    st.warning(f"⏳ Come back in {wait} mins")
+
+                elif success:
+                    st.success("🎉 Payment Successful!")
+                    st.write("✅ You earned 1 point")
+                    st.rerun()  # 🔥 refresh UI
+
+    # ---------------- REWARDS ----------------
+    st.divider()
     st.subheader("🎁 Your Rewards")
 
-    display_points = min(points, 5)
+    st.progress(points / 5)
+    st.write(f"🔥 {points}/5 points collected")
 
-    progress = display_points / 5
-    st.progress(progress)
-
-    st.write(f"🔥 {display_points}/5 points collected")
-
-    remaining = 5 - display_points
+    if points < 5:
+        remaining = 5 - points
+        st.write(f"🔥 Just {remaining} more tea to get FREE TEA ☕")
 
     if points >= 5:
         st.success("🎉 FREE TEA unlocked!")
-        st.write("👉 Show this screen to shop owner ☕")
 
-    else:
-        st.write(f"🔥 Just {remaining} more tea to get FREE TEA ☕")
-
-    st.markdown("---")
-
-# ---------------- FOOTER ----------------
-st.write("Powered by Your Startup 🚀")
+elif phone:
+    st.error("❌ Enter valid number like +919876543210")
