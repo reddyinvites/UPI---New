@@ -2,127 +2,133 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
-import pandas as pd
 
-st.set_page_config(page_title="Rewards Platform", layout="centered")
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(page_title="Ravi Tea", layout="centered")
+
+# ---------------- SHOP INFO ----------------
+SHOP_NAME = "RAVI TEA ☕"
+TAGLINE = "Morning kick chai 🔥"
+UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 
 # ---------------- GOOGLE SHEETS ----------------
-scope = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
+@st.cache_resource
+def connect_sheet():
+    scope = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
 
-creds = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"],
-    scopes=scope
-)
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scope
+    )
 
-client = gspread.authorize(creds)
+    client = gspread.authorize(creds)
 
-sheet = client.open_by_url(
-    "https://docs.google.com/spreadsheets/d/1TUKZyDy-Ot2VtSuYln5XKz6ICPaZ5XOuYWKUdDSRHiI"
-).sheet1
+    return client.open_by_url(
+        "https://docs.google.com/spreadsheets/d/1TUKZyDy-Ot2VtSuYln5XKz6ICPaZ5XOuYWKUdDSRHiI"
+    ).sheet1
 
+sheet = connect_sheet()
 
-# ---------------- SHOPS ----------------
-SHOPS = {
-    "ravi-tea": {"name": "RAVI TEA ☕", "tagline": "Morning kick chai 🔥"},
-    "juice-corner": {"name": "JUICE CORNER 🧃", "tagline": "Fresh juice 🍊"}
-}
+# ---------------- SESSION ----------------
+st.session_state.setdefault("paid", False)
+st.session_state.setdefault("last_click_time", None)
 
+# ---------------- VALIDATION ----------------
+def is_valid_phone(phone):
+    return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
 
-# ---------------- GET QUERY ----------------
-query = st.query_params
-
-role = query.get("role", "customer")
-shop_id = query.get("shop", "ravi-tea")
-
-if isinstance(role, list): role = role[0]
-if isinstance(shop_id, list): shop_id = shop_id[0]
-
-shop = SHOPS.get(shop_id, SHOPS["ravi-tea"])
-
-
-# ---------------- COMMON FUNCTIONS ----------------
-def get_all_data():
-    return pd.DataFrame(sheet.get_all_records())
-
+# ---------------- DB FUNCTIONS ----------------
 def find_row(phone):
     phones = sheet.col_values(1)
-    for i, val in enumerate(phones):
-        if val == phone:
-            return i + 1
-    return None
+    return next((i + 1 for i, val in enumerate(phones) if val == phone), None)
+
+def get_points(phone):
+    row = find_row(phone)
+    return int(sheet.cell(row, 2).value) if row else 0
 
 def update_points(phone):
     row = find_row(phone)
+
     if row:
         current = int(sheet.cell(row, 2).value)
-        new = current + 1
-        sheet.update_cell(row, 2, new)
-        return new
+        new_points = current + 1
+        sheet.update_cell(row, 2, new_points)
+        return new_points
     else:
         sheet.append_row([phone, 1])
         return 1
 
+# ---------------- FRAUD PREVENTION ----------------
+def can_click():
+    now = datetime.now()
 
-# =========================================================
-# 👤 CUSTOMER PAGE
-# =========================================================
-if role == "customer":
+    last = st.session_state.last_click_time
+    if last is None or (now - last).seconds >= 10:
+        st.session_state.last_click_time = now
+        return True
 
-    st.title(shop["name"])
-    st.caption(shop["tagline"])
+    return False
 
-    st.divider()
+# ---------------- UI ----------------
+st.markdown(f"## {SHOP_NAME}")
+st.caption(TAGLINE)
+st.divider()
 
-    st.link_button("💸 Pay & Earn Rewards", "upi://pay")
+# ---------------- PAYMENT ----------------
+st.link_button("💸 Pay & Earn Rewards", UPI_LINK)
+st.caption("After payment, confirm below 👇")
 
-    if st.button("✅ I Paid"):
-        st.success("🎉 Payment Successful!")
+if st.button("✅ I Paid"):
 
-    phone = st.text_input("Enter phone")
+    if not can_click():
+        st.error("⛔ Wait few seconds before clicking again")
+    else:
+        st.session_state.paid = True
+        st.balloons()
 
-    if st.button("Save"):
-        points = update_points(phone)
-        st.success(f"{points}/5 points")
+        st.markdown(f"""
+        ### 🎉 Payment Successful!
+        **at {SHOP_NAME}**
+        ✅ You earned 1 point
+        """)
 
+# ---------------- SAVE + POINTS ----------------
+if st.session_state.paid:
 
-# =========================================================
-# 🏪 OWNER DASHBOARD
-# =========================================================
-elif role == "owner":
+    phone = st.text_input(
+        "💾 Save points & get FREE tea 🎁",
+        placeholder="+91XXXXXXXXXX"
+    )
 
-    st.title(f"🏪 {shop['name']} Dashboard")
+    if st.button("💾 Save Rewards"):
 
-    data = get_all_data()
+        if not is_valid_phone(phone):
+            st.error("❌ Enter valid number like +919876543210")
 
-    st.subheader("📊 Customers")
-    st.dataframe(data)
+        else:
+            new_points = update_points(phone)
 
-    total_customers = len(data)
-    total_points = data["Points"].sum() if not data.empty else 0
+            st.success(f"🔥 {new_points}/5 points collected")
+            st.progress(min(new_points / 5, 1.0))
 
-    st.metric("👥 Total Customers", total_customers)
-    st.metric("🔥 Total Points Given", total_points)
+            st.markdown(
+                f"🎁 Only {max(0, 5 - new_points)} more for FREE TEA ☕"
+            )
 
+            if new_points >= 5:
+                st.success("🎉 FREE TEA unlocked!")
 
-# =========================================================
-# 🧠 ADMIN DASHBOARD
-# =========================================================
-elif role == "admin":
+    # ALWAYS SHOW CURRENT STATUS
+    if phone and is_valid_phone(phone):
+        current = get_points(phone)
 
-    st.title("🧠 Admin Dashboard")
+        st.markdown("---")
+        st.write(f"🔥 Total: {current}/5 points")
+        st.progress(min(current / 5, 1.0))
 
-    st.subheader("🏪 All Shops")
-
-    for key, val in SHOPS.items():
-        st.write(f"👉 {val['name']}")
-        st.code(f"?role=owner&shop={key}")
-
-    st.divider()
-
-    data = get_all_data()
-
-    st.subheader("📊 Full Data")
-    st.dataframe(data)
+# ---------------- FOOTER ----------------
+st.markdown("<br>", unsafe_allow_html=True)
+st.caption("Powered by Your Startup 🚀")
