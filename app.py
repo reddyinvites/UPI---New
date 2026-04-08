@@ -57,7 +57,6 @@ def is_valid_phone(phone):
 # ---------------- FIND ROW ----------------
 def find_row(phone):
     phone = clean_phone(phone)
-
     phones = sheet.col_values(1)
 
     for i, val in enumerate(phones):
@@ -104,7 +103,6 @@ def update_points(phone):
         return new_points, True, None
 
     else:
-        # safety double check
         if find_row(phone):
             return update_points(phone)
 
@@ -173,23 +171,37 @@ if st.session_state.paid:
         placeholder="+91XXXXXXXXXX"
     )
 
-    if st.button("💾 Save Rewards"):
+    phone_clean = clean_phone(phone)
 
-        phone = clean_phone(phone)
+    # 👉 CHECK EXISTING POINTS
+    current_points, _ = get_data(phone_clean) if phone else (0, None)
 
-        if not is_valid_phone(phone):
-            st.error("❌ Enter valid number")
+    # 🔥 IF ALREADY 5 POINTS
+    if phone and current_points >= 5:
 
-        else:
-            points, allowed, remaining_time = update_points(phone)
+        st.success("🎉 FREE TEA unlocked!")
+        st.markdown("👉 Show this screen to shop owner ☕")
 
-            if not allowed:
-                mins = int(remaining_time.total_seconds() // 60)
-                st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
+        # store in session
+        st.session_state.phone = phone_clean
+        st.session_state.points = current_points
+
+    else:
+        if st.button("💾 Save Rewards"):
+
+            if not is_valid_phone(phone_clean):
+                st.error("❌ Enter valid number")
+
             else:
-                st.session_state.phone = phone
-                st.session_state.points = points
-                st.rerun()
+                points, allowed, remaining_time = update_points(phone_clean)
+
+                if not allowed:
+                    mins = int(remaining_time.total_seconds() // 60)
+                    st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
+                else:
+                    st.session_state.phone = phone_clean
+                    st.session_state.points = points
+                    st.rerun()
 
 
 # ---------------- SHOW REWARDS ----------------
