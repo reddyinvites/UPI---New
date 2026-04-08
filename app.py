@@ -3,13 +3,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
-# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Ravi Tea", layout="centered")
-
-# ---------------- SHOP INFO ----------------
-SHOP_NAME = "RAVI TEA ☕"
-TAGLINE = "Morning kick chai 🔥"
-UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 
 # ---------------- GOOGLE SHEETS ----------------
 @st.cache_resource
@@ -32,6 +26,11 @@ def connect_sheet():
 
 sheet = connect_sheet()
 
+# ---------------- SHOP INFO ----------------
+SHOP_NAME = "RAVI TEA ☕"
+TAGLINE = "Morning kick chai 🔥"
+UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
+
 # ---------------- SESSION ----------------
 st.session_state.setdefault("paid", False)
 st.session_state.setdefault("last_click_time", None)
@@ -40,43 +39,37 @@ st.session_state.setdefault("last_click_time", None)
 def is_valid_phone(phone):
     return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
 
-# ---------------- GET TOTAL POINTS ----------------
+# ---------------- GET TOTAL POINTS (FIXED) ----------------
 def get_points(phone):
     data = sheet.get_all_records()
-
     total = 0
+
     for row in data:
         if row["Phone"] == phone:
             total += int(row["Points"])
 
     return total
 
-# ---------------- UPDATE POINTS (NO DUPLICATES) ----------------
+# ---------------- UPDATE POINTS (FIXED) ----------------
 def update_points(phone):
     data = sheet.get_all_records()
 
     total = 0
-    row_index = None
+    first_row_index = None
 
     for i, row in enumerate(data):
         if row["Phone"] == phone:
             total += int(row["Points"])
-            if row_index is None:
-                row_index = i + 2  # first occurrence
+            if first_row_index is None:
+                first_row_index = i + 2  # actual sheet row
 
-    if row_index:
-        new_points = total + 1
+    # existing user
+    if first_row_index:
+        new_total = total + 1
+        sheet.update_cell(first_row_index, 2, new_total)
+        return new_total
 
-        # update main row
-        sheet.update_cell(row_index, 2, new_points)
-
-        # delete duplicates
-        for i in range(len(data)-1, -1, -1):
-            if data[i]["Phone"] == phone and (i + 2) != row_index:
-                sheet.delete_rows(i + 2)
-
-        return new_points
-
+    # new user
     else:
         sheet.append_row([phone, 1])
         return 1
@@ -84,8 +77,8 @@ def update_points(phone):
 # ---------------- FRAUD PREVENTION ----------------
 def can_click():
     now = datetime.now()
-    last = st.session_state.last_click_time
 
+    last = st.session_state.last_click_time
     if last is None or (now - last).seconds >= 10:
         st.session_state.last_click_time = now
         return True
@@ -141,7 +134,7 @@ if st.session_state.paid:
             if new_points >= 5:
                 st.success("🎉 FREE TEA unlocked!")
 
-    # ALWAYS SHOW CORRECT TOTAL
+    # ALWAYS SHOW CORRECT TOTAL (FIXED)
     if phone and is_valid_phone(phone):
         current = get_points(phone)
 
