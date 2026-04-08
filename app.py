@@ -66,16 +66,6 @@ def find_row(phone):
     return None
 
 
-# ---------------- GET DATA ----------------
-def get_data(phone):
-    row = find_row(phone)
-    if row:
-        points = int(sheet.cell(row, 2).value)
-        last_time = sheet.cell(row, 3).value
-        return points, last_time
-    return 0, None
-
-
 # ---------------- UPDATE POINTS ----------------
 def update_points(phone):
     phone = clean_phone(phone)
@@ -173,18 +163,13 @@ if st.session_state.paid:
 
     phone_clean = clean_phone(phone)
 
-    # 👉 CHECK EXISTING POINTS
-    current_points, _ = get_data(phone_clean) if phone else (0, None)
+    # 🔥 USE SESSION POINTS
+    current_points = st.session_state.points
 
-    # 🔥 IF ALREADY 5 POINTS
-    if phone and current_points >= 5:
-
+    # ✅ IF ALREADY COMPLETED
+    if current_points >= 5:
         st.success("🎉 FREE TEA unlocked!")
         st.markdown("👉 Show this screen to shop owner ☕")
-
-        # store in session
-        st.session_state.phone = phone_clean
-        st.session_state.points = current_points
 
     else:
         if st.button("💾 Save Rewards"):
