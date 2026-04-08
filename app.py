@@ -45,10 +45,13 @@ def is_valid_phone(phone):
 # ---------------- DB FUNCTIONS ----------------
 def get_points(phone):
     data = sheet.get_all_records()
+    total = 0
+
     for row in data:
         if row["Phone"] == phone:
-            return row["Points"]
-    return 0
+            total += row["Points"]
+
+    return total
 
 
 def update_points(phone):
@@ -60,11 +63,29 @@ def update_points(phone):
             sheet.update_cell(i + 2, 2, new_points)
             return new_points
 
+    # New user
     sheet.append_row([phone, 1])
     return 1
 
 
-# ---------------- PREMIUM UI ----------------
+# ---------------- FRAUD PREVENTION ----------------
+def can_click():
+    now = datetime.now()
+
+    if st.session_state.last_click_time is None:
+        st.session_state.last_click_time = now
+        return True
+
+    diff = (now - st.session_state.last_click_time).seconds
+
+    if diff < 10:
+        return False
+    else:
+        st.session_state.last_click_time = now
+        return True
+
+
+# ---------------- UI STYLE ----------------
 st.markdown("""
 <style>
 .main {
@@ -93,7 +114,7 @@ st.markdown("""
 st.markdown(f'<div class="title">{SHOP_NAME}</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="tag">{TAGLINE}</div>', unsafe_allow_html=True)
 
-# ---------------- PAYMENT CARD ----------------
+# ---------------- PAYMENT ----------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
 st.markdown("### 💸 Pay & Earn Rewards")
@@ -107,24 +128,7 @@ paid_click = st.button("✅ I Paid")
 st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ---------------- FRAUD PREVENTION ----------------
-def can_click():
-    now = datetime.now()
-
-    if st.session_state.last_click_time is None:
-        st.session_state.last_click_time = now
-        return True
-
-    diff = (now - st.session_state.last_click_time).seconds
-
-    if diff < 10:  # 10 sec lock
-        return False
-    else:
-        st.session_state.last_click_time = now
-        return True
-
-
-# ---------------- SUCCESS FLOW ----------------
+# ---------------- SUCCESS ----------------
 if paid_click:
 
     if not can_click():
@@ -143,7 +147,7 @@ if paid_click:
         """, unsafe_allow_html=True)
 
 
-# ---------------- SAVE + POINTS ----------------
+# ---------------- SAVE + LOYALTY ----------------
 if st.session_state.paid:
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -162,14 +166,22 @@ if st.session_state.paid:
             points = update_points(phone)
 
             st.success(f"🔥 {points}/5 points collected")
+
             st.progress(min(points / 5, 1.0))
 
             st.markdown(f"""
-            🎁 Only {5 - points} more for FREE TEA ☕
+            🎁 Only {max(0, 5 - points)} more for FREE TEA ☕
             """)
 
             if points >= 5:
                 st.success("🎉 FREE TEA unlocked!")
+
+    # SHOW CURRENT POINTS ALWAYS
+    if phone and is_valid_phone(phone):
+        current = get_points(phone)
+
+        st.progress(min(current / 5, 1.0))
+        st.write(f"🔥 Total: {current}/5 points")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
