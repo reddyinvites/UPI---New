@@ -1,7 +1,7 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -51,30 +51,58 @@ def is_valid_phone(phone):
 # ---------------- FIND ROW ----------------
 def find_row(phone):
     phones = sheet.col_values(1)
-
     for i, val in enumerate(phones):
         if val.strip() == phone.strip():
             return i + 1
-
     return None
 
 
-# ---------------- UPDATE POINTS ----------------
+# ---------------- GET DATA ----------------
+def get_data(phone):
+    row = find_row(phone)
+    if row:
+        points = int(sheet.cell(row, 2).value)
+        last_time = sheet.cell(row, 3).value
+        return points, last_time
+    return 0, None
+
+
+# ---------------- UPDATE POINTS WITH COOLDOWN ----------------
 def update_points(phone):
     row = find_row(phone)
+    now = datetime.now()
 
     if row:
-        current = int(sheet.cell(row, 2).value)
-        new_points = current + 1
+        current_points = int(sheet.cell(row, 2).value)
+        last_time_str = sheet.cell(row, 3).value
+
+        if last_time_str:
+            last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S")
+            diff = now - last_time
+
+            # ⛔ COOLDOWN: 2 HOURS
+            if diff < timedelta(hours=2):
+                remaining = timedelta(hours=2) - diff
+                return current_points, False, remaining
+
+        # ✅ ALLOW UPDATE
+        new_points = current_points + 1
         sheet.update_cell(row, 2, new_points)
-        return new_points
+        sheet.update_cell(row, 3, now.strftime("%Y-%m-%d %H:%M:%S"))
+
+        return new_points, True, None
 
     else:
-        sheet.append_row([phone, 1])
-        return 1
+        # NEW USER
+        sheet.append_row([
+            phone,
+            1,
+            now.strftime("%Y-%m-%d %H:%M:%S")
+        ])
+        return 1, True, None
 
 
-# ---------------- FRAUD ----------------
+# ---------------- FRAUD CLICK ----------------
 def can_click():
     now = datetime.now()
 
@@ -84,7 +112,7 @@ def can_click():
 
     diff = (now - st.session_state.last_click_time).seconds
 
-    if diff < 10:
+    if diff < 5:
         return False
     else:
         st.session_state.last_click_time = now
@@ -106,7 +134,7 @@ st.write("👇 After payment, confirm below")
 if st.button("✅ I Paid"):
 
     if not can_click():
-        st.error("⛔ Wait few seconds before clicking again")
+        st.error("⛔ Wait few seconds")
     else:
         st.session_state.paid = True
         st.balloons()
@@ -136,16 +164,18 @@ if st.session_state.paid:
             st.error("❌ Enter valid number")
 
         else:
-            new_points = update_points(phone)
+            points, allowed, remaining_time = update_points(phone)
 
-            # SAVE TO SESSION (IMPORTANT)
-            st.session_state.phone = phone
-            st.session_state.points = new_points
+            if not allowed:
+                mins = int(remaining_time.total_seconds() // 60)
+                st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
+            else:
+                st.session_state.phone = phone
+                st.session_state.points = points
+                st.rerun()
 
-            st.rerun()
 
-
-# ---------------- SHOW REWARDS (STABLE) ----------------
+# ---------------- SHOW REWARDS ----------------
 if st.session_state.phone:
 
     points = st.session_state.points
