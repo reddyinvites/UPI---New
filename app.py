@@ -43,17 +43,27 @@ if "points" not in st.session_state:
     st.session_state.points = 0
 
 
+# ---------------- CLEAN PHONE ----------------
+def clean_phone(p):
+    return str(p).strip().replace(" ", "")
+
+
 # ---------------- VALIDATION ----------------
 def is_valid_phone(phone):
+    phone = clean_phone(phone)
     return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
 
 
 # ---------------- FIND ROW ----------------
 def find_row(phone):
+    phone = clean_phone(phone)
+
     phones = sheet.col_values(1)
+
     for i, val in enumerate(phones):
-        if val.strip() == phone.strip():
+        if clean_phone(val) == phone:
             return i + 1
+
     return None
 
 
@@ -67,8 +77,9 @@ def get_data(phone):
     return 0, None
 
 
-# ---------------- UPDATE POINTS WITH COOLDOWN ----------------
+# ---------------- UPDATE POINTS ----------------
 def update_points(phone):
+    phone = clean_phone(phone)
     row = find_row(phone)
     now = datetime.now()
 
@@ -80,25 +91,29 @@ def update_points(phone):
             last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S")
             diff = now - last_time
 
-            # ⛔ COOLDOWN: 2 HOURS
+            # ⛔ COOLDOWN (2 hours)
             if diff < timedelta(hours=2):
                 remaining = timedelta(hours=2) - diff
                 return current_points, False, remaining
 
-        # ✅ ALLOW UPDATE
         new_points = current_points + 1
+
         sheet.update_cell(row, 2, new_points)
         sheet.update_cell(row, 3, now.strftime("%Y-%m-%d %H:%M:%S"))
 
         return new_points, True, None
 
     else:
-        # NEW USER
+        # safety double check
+        if find_row(phone):
+            return update_points(phone)
+
         sheet.append_row([
             phone,
             1,
             now.strftime("%Y-%m-%d %H:%M:%S")
         ])
+
         return 1, True, None
 
 
@@ -159,6 +174,8 @@ if st.session_state.paid:
     )
 
     if st.button("💾 Save Rewards"):
+
+        phone = clean_phone(phone)
 
         if not is_valid_phone(phone):
             st.error("❌ Enter valid number")
