@@ -42,47 +42,41 @@ def is_valid_phone(phone):
     return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
 
 
+# ---------------- FIND ROW ----------------
+def find_row(phone):
+    phones = sheet.col_values(1)  # Column A
+
+    for i, val in enumerate(phones):
+        if val == phone:
+            return i + 1  # Row number
+
+    return None
+
+
 # ---------------- GET POINTS ----------------
 def get_points(phone):
-    data = sheet.get_all_records()
-    total = 0
+    row = find_row(phone)
 
-    for row in data:
-        if row["Phone"] == phone:
-            total += row["Points"]
+    if row:
+        return int(sheet.cell(row, 2).value)
 
-    return total
+    return 0
 
 
-# ---------------- UPDATE POINTS (NO DUPLICATES) ----------------
+# ---------------- UPDATE POINTS ----------------
 def update_points(phone):
-    data = sheet.get_all_records()
 
-    total = 0
-    main_row = None
-    delete_rows = []
+    row = find_row(phone)
 
-    for i, row in enumerate(data):
-        if row["Phone"] == phone:
-            total += row["Points"]
-
-            if main_row is None:
-                main_row = i + 2
-            else:
-                delete_rows.append(i + 2)
-
-    # delete duplicate rows
-    for r in reversed(delete_rows):
-        sheet.delete_rows(r)
-
-    if main_row:
-        new_points = total + 1
-        sheet.update_cell(main_row, 2, new_points)
+    if row:
+        current = int(sheet.cell(row, 2).value)
+        new_points = current + 1
+        sheet.update_cell(row, 2, new_points)
         return new_points
 
-    # new user
-    sheet.append_row([phone, 1])
-    return 1
+    else:
+        sheet.append_row([phone, 1])
+        return 1
 
 
 # ---------------- FRAUD PREVENTION ----------------
@@ -140,27 +134,35 @@ if st.session_state.paid:
             st.error("❌ Enter valid number like +919876543210")
 
         else:
-            # update + get latest
             update_points(phone)
-            current = get_points(phone)
+            st.success("✅ Points saved!")
 
-            st.success(f"🔥 {current}/5 points collected")
-            st.progress(min(current / 5, 1.0))
+            st.rerun()  # 🔥 force refresh
 
-            st.markdown(f"""
-            🎁 Only {max(0, 5 - current)} more for FREE TEA ☕
-            """)
 
-            if current >= 5:
-                st.success("🎉 FREE TEA unlocked!")
+# ---------------- SHOW CURRENT STATUS ----------------
+if st.session_state.paid:
 
-    # ALWAYS SHOW CURRENT STATUS
+    phone = st.text_input(
+        "Enter your number to check points",
+        placeholder="+91XXXXXXXXXX",
+        key="check"
+    )
+
     if phone and is_valid_phone(phone):
+
         current = get_points(phone)
 
         st.divider()
         st.write(f"🔥 Total: {current}/5 points")
         st.progress(min(current / 5, 1.0))
+
+        st.markdown(f"""
+        🎁 Only {max(0, 5 - current)} more for FREE TEA ☕
+        """)
+
+        if current >= 5:
+            st.success("🎉 FREE TEA unlocked!")
 
 
 # ---------------- FOOTER ----------------
