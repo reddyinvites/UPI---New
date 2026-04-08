@@ -6,93 +6,101 @@ from datetime import datetime
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
 # ---------------- GOOGLE SHEETS ----------------
-@st.cache_resource
-def connect_sheet():
-    scope = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
-    creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
-        scopes=scope
-    )
+creds = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"],
+    scopes=scope
+)
 
-    client = gspread.authorize(creds)
+client = gspread.authorize(creds)
 
-    return client.open_by_url(
-        "https://docs.google.com/spreadsheets/d/1TUKZyDy-Ot2VtSuYln5XKz6ICPaZ5XOuYWKUdDSRHiI"
-    ).sheet1
+sheet = client.open_by_url(
+    "https://docs.google.com/spreadsheets/d/1TUKZyDy-Ot2VtSuYln5XKz6ICPaZ5XOuYWKUdDSRHiI"
+).sheet1
 
-sheet = connect_sheet()
 
 # ---------------- SHOP INFO ----------------
 SHOP_NAME = "RAVI TEA ☕"
 TAGLINE = "Morning kick chai 🔥"
 UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 
+
 # ---------------- SESSION ----------------
-st.session_state.setdefault("paid", False)
-st.session_state.setdefault("last_click_time", None)
+if "paid" not in st.session_state:
+    st.session_state.paid = False
+
+if "last_click_time" not in st.session_state:
+    st.session_state.last_click_time = None
+
 
 # ---------------- VALIDATION ----------------
 def is_valid_phone(phone):
     return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
 
-# ---------------- GET TOTAL POINTS (FIXED) ----------------
+
+# ---------------- FIND ROW ----------------
+def find_row(phone):
+    phones = sheet.col_values(1)
+    for i, val in enumerate(phones):
+        if val == phone:
+            return i + 1
+    return None
+
+
+# ---------------- GET POINTS ----------------
 def get_points(phone):
-    data = sheet.get_all_records()
-    total = 0
+    row = find_row(phone)
+    if row:
+        return int(sheet.cell(row, 2).value)
+    return 0
 
-    for row in data:
-        if row["Phone"] == phone:
-            total += int(row["Points"])
 
-    return total
-
-# ---------------- UPDATE POINTS (FIXED) ----------------
+# ---------------- UPDATE POINTS ----------------
 def update_points(phone):
-    data = sheet.get_all_records()
+    row = find_row(phone)
 
-    total = 0
-    first_row_index = None
-
-    for i, row in enumerate(data):
-        if row["Phone"] == phone:
-            total += int(row["Points"])
-            if first_row_index is None:
-                first_row_index = i + 2  # actual sheet row
-
-    # existing user
-    if first_row_index:
-        new_total = total + 1
-        sheet.update_cell(first_row_index, 2, new_total)
-        return new_total
-
-    # new user
+    if row:
+        current = int(sheet.cell(row, 2).value)
+        new_points = current + 1
+        sheet.update_cell(row, 2, new_points)
+        return new_points
     else:
         sheet.append_row([phone, 1])
         return 1
+
 
 # ---------------- FRAUD PREVENTION ----------------
 def can_click():
     now = datetime.now()
 
-    last = st.session_state.last_click_time
-    if last is None or (now - last).seconds >= 10:
+    if st.session_state.last_click_time is None:
         st.session_state.last_click_time = now
         return True
 
-    return False
+    diff = (now - st.session_state.last_click_time).seconds
+
+    if diff < 10:
+        return False
+    else:
+        st.session_state.last_click_time = now
+        return True
+
 
 # ---------------- UI ----------------
 st.markdown(f"## {SHOP_NAME}")
-st.caption(TAGLINE)
+st.write(TAGLINE)
+
 st.divider()
 
 # ---------------- PAYMENT ----------------
-st.link_button("💸 Pay & Earn Rewards", UPI_LINK)
-st.caption("After payment, confirm below 👇")
+st.markdown("### 💸 Pay & Earn Rewards")
+st.link_button("👉 Pay with UPI", UPI_LINK)
+
+st.write("👇 After payment, confirm below")
 
 if st.button("✅ I Paid"):
 
@@ -103,16 +111,20 @@ if st.button("✅ I Paid"):
         st.balloons()
 
         st.markdown(f"""
-        ### 🎉 Payment Successful!
+        ## 🎉 Payment Successful!
+
         **at {SHOP_NAME}**
-        ✅ You earned 1 point
+
+        ✅ You earned 1 point  
+        🔥 Complete 5 → get FREE TEA ☕
         """)
 
-# ---------------- SAVE + SHOW POINTS ----------------
+
+# ---------------- SAVE + REWARDS ----------------
 if st.session_state.paid:
 
     phone = st.text_input(
-        "💾 Save points & get FREE tea 🎁",
+        "💾 Save your rewards (WhatsApp number)",
         placeholder="+91XXXXXXXXXX"
     )
 
@@ -122,25 +134,35 @@ if st.session_state.paid:
             st.error("❌ Enter valid number like +919876543210")
 
         else:
-            new_points = update_points(phone)
+            points = update_points(phone)
 
-            st.success(f"🔥 {new_points}/5 points collected")
-            st.progress(min(new_points / 5, 1.0))
+            st.success(f"🔥 {points}/5 points collected")
+            st.progress(min(points / 5, 1.0))
 
-            st.markdown(
-                f"🎁 Only {max(0, 5 - new_points)} more for FREE TEA ☕"
-            )
+            st.markdown(f"""
+            🔥 Only {max(0, 5 - points)} more for FREE TEA ☕
+            """)
 
-            if new_points >= 5:
+            if points >= 5:
                 st.success("🎉 FREE TEA unlocked!")
 
-    # ALWAYS SHOW CORRECT TOTAL (FIXED)
-    if phone and is_valid_phone(phone):
-        current = get_points(phone)
+            st.rerun()
 
-        st.markdown("---")
-        st.write(f"🔥 Total: {current}/5 points")
-        st.progress(min(current / 5, 1.0))
+
+# ---------------- SHOW REWARDS ALWAYS ----------------
+if st.session_state.paid and phone and is_valid_phone(phone):
+
+    current = get_points(phone)
+
+    st.divider()
+    st.subheader("🎁 Your Rewards")
+
+    st.progress(min(current / 5, 1.0))
+    st.write(f"🔥 {current}/5 points collected")
+
+    if current >= 5:
+        st.success("🎉 FREE TEA unlocked!")
+
 
 # ---------------- FOOTER ----------------
 st.markdown("<br>", unsafe_allow_html=True)
