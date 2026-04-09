@@ -167,7 +167,7 @@ if st.session_state.submitted:
         st.success(f"👋 Welcome back! You have {pts} points")
 
     # ---------------- PAYMENT ----------------
-    if pts < 5 and not st.session_state.paid_clicked:
+    if pts < 5 and not st.session_state.success_msg:
 
         st.markdown("### 💸 Get your reward")
 
@@ -183,7 +183,9 @@ if st.session_state.submitted:
             st.session_state.points = new_pts
 
             st.session_state.success_msg = True
+
             st.rerun()
+            st.stop()   # 🔥 FIX: remove old UI immediately
 
     # ---------------- SUCCESS ----------------
     if st.session_state.success_msg:
