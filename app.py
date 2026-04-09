@@ -31,23 +31,13 @@ UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 
 
 # ---------------- SESSION ----------------
-if "phone" not in st.session_state:
+for key in ["phone", "points", "paid_clicked", "success_msg", "submitted", "end_screen"]:
+    if key not in st.session_state:
+        st.session_state[key] = False if key != "points" else 0
+
+# fix phone separately
+if not isinstance(st.session_state.phone, str):
     st.session_state.phone = ""
-
-if "points" not in st.session_state:
-    st.session_state.points = 0
-
-if "paid_clicked" not in st.session_state:
-    st.session_state.paid_clicked = False
-
-if "success_msg" not in st.session_state:
-    st.session_state.success_msg = False
-
-if "submitted" not in st.session_state:
-    st.session_state.submitted = False
-
-if "end_screen" not in st.session_state:
-    st.session_state.end_screen = False
 
 
 # ---------------- HELPERS ----------------
@@ -95,19 +85,17 @@ st.divider()
 
 
 # =========================================================
-# 🟢 END SCREEN
+# END SCREEN
 # =========================================================
 if st.session_state.end_screen:
 
-    st.markdown(f"""
+    st.markdown("""
 ### 🎯 See you again!
 
-🔥 *{TAGLINE}*
-
-💸 Every tea = reward  
+🔥 Every tea = reward  
 🎁 Every 5 = FREE tea  
 
-👉 Come back soon & scan again  
+👉 Come back soon  
 👉 More visits = more free chai ☕
 """)
 
@@ -116,7 +104,7 @@ if st.session_state.end_screen:
 
 
 # =========================================================
-# 🟢 WELCOME SCREEN
+# WELCOME SCREEN
 # =========================================================
 if not st.session_state.submitted:
 
@@ -128,13 +116,9 @@ if not st.session_state.submitted:
 💸 Pay easily with UPI  
 🎁 Earn rewards on every tea  
 ☕ Complete 5 → Get 1 FREE  
-
-👇 Just enter your number & start earning
 """)
 
-    st.info("🚀 Powered by Your Startup — Smart Rewards System")
-
-    st.divider()
+    st.info("🚀 Smart Rewards System")
 
     with st.form("form"):
         phone = st.text_input("📱 Enter your number", placeholder="+91XXXXXXXXXX")
@@ -149,43 +133,23 @@ if not st.session_state.submitted:
             st.session_state.submitted = True
             st.rerun()
         else:
-            st.error("❌ Enter valid number (+91XXXXXXXXXX)")
+            st.error("❌ Enter valid number")
 
 
 # =========================================================
-# 🟢 MAIN FLOW
+# MAIN FLOW
 # =========================================================
 if st.session_state.submitted:
 
-    phone = st.session_state.phone
     pts = st.session_state.points
 
-    # ✅ FIX: new vs old user
+    # welcome message
     if pts == 0:
         st.success("👋 Welcome! Start earning rewards 🎉")
     else:
         st.success(f"👋 Welcome back! You have {pts} points")
 
-    # ---------------- PAYMENT ----------------
-    if pts < 5 and not st.session_state.paid_clicked:
-
-        st.markdown("### 💸 Get your reward")
-
-        st.link_button("👉 Pay with UPI", UPI_LINK)
-
-        st.caption("💡 Complete payment using any UPI app")
-        st.caption("👇 After payment, click below")
-
-        if st.button("✅ I Paid"):
-            st.session_state.paid_clicked = True
-
-            new_pts = update_points(phone)
-            st.session_state.points = new_pts
-
-            st.session_state.success_msg = True
-            st.rerun()
-
-    # ---------------- SUCCESS ----------------
+    # ---------------- SUCCESS UI (ONLY CLEAN UI) ----------------
     if st.session_state.success_msg:
 
         st.success("🎉 Payment Successful! +1 point added")
@@ -197,27 +161,38 @@ if st.session_state.submitted:
 🔥 Complete 5 → get FREE TEA ☕
 """)
 
-    # ---------------- REWARDS (FIXED NO DUPLICATE) ----------------
-    if not st.session_state.success_msg:
+    # ---------------- NORMAL FLOW ----------------
+    elif pts < 5:
 
-        points = st.session_state.points
+        st.markdown("### 💸 Get your reward")
+        st.link_button("👉 Pay with UPI", UPI_LINK)
 
-        st.divider()
-        st.subheader("🎁 Your Rewards")
+        if st.button("✅ I Paid"):
+            st.session_state.paid_clicked = True
+            st.session_state.points = update_points(st.session_state.phone)
+            st.session_state.success_msg = True
+            st.rerun()
 
-        st.progress(min(points / 5, 1.0))
-        st.write(f"🔥 {points}/5 points collected")
+    # ---------------- FREE TEA ----------------
+    if pts >= 5:
+        st.success("🎉 FREE TEA unlocked!")
+        st.markdown("👉 Show this screen to shop owner ☕")
 
-        remaining = max(0, 5 - points)
+    # ---------------- REWARDS (ONLY ONCE CLEAN) ----------------
+    st.divider()
+    st.subheader("🎁 Your Rewards")
 
-        if remaining > 0:
-            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-        else:
-            st.success("🎉 FREE TEA unlocked!")
+    st.progress(min(st.session_state.points / 5, 1.0))
+    st.write(f"🔥 {st.session_state.points}/5 points collected")
+
+    remaining = max(0, 5 - st.session_state.points)
+
+    if remaining > 0:
+        st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
 
 
 # =========================================================
-# 🔁 AUTO RESET → END SCREEN AFTER 10 SEC
+# AUTO RESET → CLEAN END SCREEN
 # =========================================================
 if st.session_state.success_msg:
 
@@ -234,5 +209,4 @@ if st.session_state.success_msg:
 
 
 # ---------------- FOOTER ----------------
-st.markdown("<br>", unsafe_allow_html=True)
 st.caption("Powered by Your Startup 🚀")
