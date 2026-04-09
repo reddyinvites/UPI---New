@@ -108,9 +108,34 @@ st.write(TAGLINE)
 st.divider()
 
 
-# ---------------- BRAND SCREEN ----------------
-if st.session_state.phone == "" and not st.session_state.show_end_screen:
+# ✅ STOP EVERYTHING IF END SCREEN
+if st.session_state.show_end_screen:
 
+    st.markdown(f"""
+    ## ☕ {SHOP_NAME}
+
+    🔥 *{TAGLINE}*
+
+    ---
+
+    ### 🎯 See you again!
+
+    💸 Every tea = reward  
+    🎁 Every 5 = FREE tea  
+
+    👉 Come back soon & scan again  
+    👉 More visits = more free chai ☕
+
+    ---
+
+    🚀 Powered by Your Startup  
+    """)
+
+    st.stop()
+
+
+# ---------------- BRAND SCREEN ----------------
+if st.session_state.phone == "":
     st.markdown("""
     ### ☕ Welcome to RAVI TEA
 
@@ -136,6 +161,7 @@ phone = st.text_input(
 
 phone_clean = clean_phone(phone)
 
+
 if is_valid_phone(phone_clean):
 
     st.session_state.phone = phone_clean
@@ -150,21 +176,12 @@ if is_valid_phone(phone_clean):
 
         else:
             st.markdown("### 💸 Get your reward")
-            st.link_button(
-                "👉 Pay with UPI",
-                UPI_LINK,
-                disabled=st.session_state.paid_clicked
-            )
+            st.link_button("👉 Pay with UPI", UPI_LINK)
 
             st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
             st.caption("👇 After payment, click below to collect your reward")
 
-            paid_btn = st.button(
-                "✅ I Paid",
-                disabled=st.session_state.paid_clicked
-            )
-
-            if paid_btn and not st.session_state.paid_clicked:
+            if st.button("✅ I Paid"):
 
                 st.session_state.paid_clicked = True
 
@@ -176,8 +193,9 @@ if is_valid_phone(phone_clean):
                 st.rerun()
 
 
-# ---------------- SUCCESS MESSAGE ----------------
-if st.session_state.success_msg and not st.session_state.show_end_screen:
+# ---------------- SUCCESS ----------------
+if st.session_state.success_msg:
+
     st.success("🎉 Payment Successful! +1 point added")
 
     st.markdown(f"""
@@ -188,8 +206,8 @@ if st.session_state.success_msg and not st.session_state.show_end_screen:
     """)
 
 
-# ---------------- SHOW REWARDS (FIXED NO DUPLICATE) ----------------
-if st.session_state.phone and not st.session_state.show_end_screen:
+# ---------------- SHOW REWARDS ----------------
+if st.session_state.phone:
 
     points = st.session_state.points
 
@@ -207,11 +225,12 @@ if st.session_state.phone and not st.session_state.show_end_screen:
         st.success("🎉 FREE TEA unlocked!")
 
 
-# ---------------- AUTO RESET ----------------
+# ---------------- AUTO RESET (FIXED NO DUPLICATE) ----------------
 if st.session_state.success_msg:
 
-    time.sleep(6)
+    time.sleep(5)
 
+    # 🔥 CLEAR BEFORE UI RENDER AGAIN
     st.session_state.phone = ""
     st.session_state.points = 0
     st.session_state.paid_clicked = False
@@ -219,32 +238,6 @@ if st.session_state.success_msg:
     st.session_state.show_end_screen = True
 
     st.rerun()
-
-
-# ---------------- FINAL END SCREEN (UPDATED) ----------------
-if st.session_state.show_end_screen:
-
-    st.markdown(f"""
-    ## ☕ {SHOP_NAME}
-
-    🔥 *{TAGLINE}*
-
-    ---
-
-    ### 🎯 See you again!
-
-    💸 Every tea = reward  
-    🎁 Every 5 = FREE tea  
-
-    👉 Come back soon & scan again  
-    👉 More visits = more free chai ☕
-
-    ---
-
-    🚀 Powered by Your Startup  
-    """)
-
-    st.stop()
 
 
 # ---------------- FOOTER ----------------
