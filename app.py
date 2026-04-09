@@ -34,6 +34,7 @@ with st.sidebar:
 
     st.markdown("## 🔐 Owner Panel")
 
+    # -------- LOGIN --------
     if not st.session_state.owner_logged:
 
         pwd = st.text_input("Enter password", type="password")
@@ -41,10 +42,11 @@ with st.sidebar:
         if st.button("Login"):
             if pwd == OWNER_PASSWORD:
                 st.session_state.owner_logged = True
-                st.success("Logged in ✅")
+                st.rerun()   # 🔥 IMPORTANT
             else:
                 st.error("Wrong password ❌")
 
+    # -------- DASHBOARD --------
     else:
         st.success("Logged in ✅")
 
@@ -54,6 +56,7 @@ with st.sidebar:
 
         st.divider()
 
+        # 🔥 FETCH DATA
         data = sheet.get_all_values()
 
         total_users = len(data) - 1 if len(data) > 1 else 0
@@ -77,6 +80,7 @@ with st.sidebar:
         tea_price = 10
         today_revenue = today_visits * tea_price
 
+        # 🔥 DISPLAY
         st.markdown("## 📊 Dashboard")
         st.write(f"👥 Users: {total_users}")
         st.write(f"🎯 Total Points: {total_points}")
