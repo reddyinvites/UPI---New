@@ -46,9 +46,8 @@ if "submitted" not in st.session_state:
 if "end_screen" not in st.session_state:
     st.session_state.end_screen = False
 
-# ✅ NEW (pay control)
-if "pay_clicked" not in st.session_state:
-    st.session_state.pay_clicked = False
+if "pay_timer_start" not in st.session_state:
+    st.session_state.pay_timer_start = None
 
 
 # ---------------- HELPERS ----------------
@@ -75,7 +74,6 @@ def get_user_data(phone):
     return 0
 
 
-# ---------------- COOLDOWN ----------------
 def update_points(phone):
     row = find_row(phone)
     now = datetime.now()
@@ -162,9 +160,16 @@ if not st.session_state.submitted:
         phone = clean_phone(phone)
 
         if is_valid_phone(phone):
+
+            # 🔥 RESET (fix new user bug)
+            st.session_state.success_msg = False
+            st.session_state.end_screen = False
+            st.session_state.pay_timer_start = None
+
             st.session_state.phone = phone
             st.session_state.points = get_user_data(phone)
             st.session_state.submitted = True
+
             st.rerun()
         else:
             st.error("❌ Enter valid number (+91XXXXXXXXXX)")
@@ -197,6 +202,7 @@ if st.session_state.submitted:
         if pts >= 5:
             st.success("🎉 FREE TEA unlocked!")
 
+        # ⏳ delay + reset
         time.sleep(10)
 
         st.session_state.phone = ""
@@ -204,7 +210,7 @@ if st.session_state.submitted:
         st.session_state.success_msg = False
         st.session_state.submitted = False
         st.session_state.end_screen = True
-        st.session_state.pay_clicked = False
+        st.session_state.pay_timer_start = None
 
         st.rerun()
         st.stop()
@@ -223,14 +229,21 @@ if st.session_state.submitted:
 
         st.caption("💡 Complete payment using any UPI app")
 
-        # ✅ Enable flow button
-        if st.button("🔓 I have opened payment"):
-            st.session_state.pay_clicked = True
+        # ⏳ auto enable after 3 sec
+        if st.session_state.pay_timer_start is None:
+            st.session_state.pay_timer_start = time.time()
+
+        elapsed = time.time() - st.session_state.pay_timer_start
+
+        if elapsed < 3:
+            st.info("⏳ Please complete payment...")
+            enable_paid = False
+        else:
+            enable_paid = True
 
         st.caption("👇 After payment, click below")
 
-        # ✅ Controlled button
-        if st.button("✅ I Paid", disabled=not st.session_state.pay_clicked):
+        if st.button("✅ I Paid", disabled=not enable_paid):
 
             new_pts, allowed, remaining_time = update_points(phone)
 
@@ -240,6 +253,7 @@ if st.session_state.submitted:
             else:
                 st.session_state.points = new_pts
                 st.session_state.success_msg = True
+                st.session_state.pay_timer_start = None
                 st.rerun()
 
     # -------- REWARDS (ONLY ONCE) --------
