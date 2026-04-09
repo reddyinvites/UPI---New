@@ -2,6 +2,7 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+import time  # ✅ ADDED
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -108,7 +109,7 @@ phone = st.text_input(
     "📱 Enter your number to check rewards",
     value=st.session_state.phone,
     placeholder="+91XXXXXXXXXX",
-    disabled=st.session_state.paid_clicked
+    disabled=st.session_state.paid_clicked  # already you added
 )
 
 phone_clean = clean_phone(phone)
@@ -116,16 +117,12 @@ phone_clean = clean_phone(phone)
 if is_valid_phone(phone_clean):
 
     st.session_state.phone = phone_clean
-
     pts, last = get_user_data(phone_clean)
     st.session_state.points = pts
 
-    # ✅ Welcome message (kept)
-    st.success(f"👋 Welcome back! You have {pts} points")
-
     if not st.session_state.paid_clicked:
 
-        # ---------------- FREE TEA CHECK ----------------
+        # ---------------- FREE TEA ----------------
         if pts >= 5:
             st.success("🎉 FREE TEA unlocked!")
             st.markdown("👉 Show this screen to shop owner ☕")
@@ -133,7 +130,11 @@ if is_valid_phone(phone_clean):
         else:
             # ---------------- PAYMENT ----------------
             st.markdown("### 💸 Get your reward")
-            st.link_button("👉 Pay with UPI", UPI_LINK)
+            st.link_button(
+                "👉 Pay with UPI",
+                UPI_LINK,
+                disabled=st.session_state.paid_clicked  # disabled after click
+            )
 
             st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
             st.caption("👇 After payment, click below to collect your reward")
@@ -184,6 +185,19 @@ if st.session_state.phone:
         st.markdown(f"🔥 {remaining} more tea{'s' if remaining > 1 else ''} to get FREE TEA ☕")
     else:
         st.success("🎉 FREE TEA unlocked!")
+
+
+# ---------------- AUTO RESET (ONLY ADDITION) ----------------
+if st.session_state.success_msg:
+
+    time.sleep(6)  # show success for 6 sec
+
+    st.session_state.phone = ""
+    st.session_state.points = 0
+    st.session_state.paid_clicked = False
+    st.session_state.success_msg = False
+
+    st.rerun()
 
 
 # ---------------- FOOTER ----------------
