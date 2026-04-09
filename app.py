@@ -233,6 +233,10 @@ if not st.session_state.submitted:
             st.session_state.phone = phone
             st.session_state.points = get_user_data(phone)
             st.session_state.submitted = True
+
+            # 👉 reset timer when new user enters
+            st.session_state.pay_time = None
+
             st.rerun()
         else:
             st.error("❌ Enter valid number (+91XXXXXXXXXX)")
@@ -295,8 +299,8 @@ if st.session_state.submitted:
         st.caption("💡 Complete payment using any UPI app")
         st.caption("👇 After payment, click below")
 
-        # 👉 Start timer only when user clicks
-        if st.button("🟢 I Opened Payment"):
+        # 👉 AUTO TIMER START (smooth UX)
+        if st.session_state.pay_time is None:
             st.session_state.pay_time = datetime.now()
 
         can_click = False
