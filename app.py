@@ -255,7 +255,7 @@ if st.session_state.submitted:
             st.balloons()
 
 
-# ---------------- ADMIN PANEL ----------------
+# ---------------- SIMPLE OWNER DASHBOARD ----------------
 st.sidebar.title("🔐 Owner Panel")
 
 ADMIN_PASSWORD = "1234"
@@ -265,72 +265,35 @@ if admin_pass == ADMIN_PASSWORD:
 
     st.sidebar.success("Logged in")
 
-    menu = st.sidebar.radio("Menu", [
-        "📊 Overview",
-        "👥 Customers",
-        "🎁 Rewards Control"
-    ])
-
     data = sheet.get_all_records()
 
-    if menu == "📊 Overview":
+    # -------- CALCULATIONS --------
+    total_users = len(data)
+    total_points = sum([int(r["points"]) for r in data if r["points"]])
 
-        st.subheader("📊 Analytics")
+    today = datetime.now().date()
 
-        total_users = len(data)
-        total_points = sum([int(r["points"]) for r in data if r["points"]])
+    today_visits = 0
 
-        st.metric("Customers", total_users)
-        st.metric("Points Given", total_points)
+    for r in data:
+        if r["last_time"]:
+            last = datetime.strptime(r["last_time"], "%Y-%m-%d %H:%M:%S").date()
+            if last == today:
+                today_visits += 1
 
-        st.divider()
+    TEA_PRICE = 10  # change if needed
+    today_revenue = today_visits * TEA_PRICE
 
-        sorted_data = sorted(data, key=lambda x: int(x["points"]), reverse=True)
+    # -------- DISPLAY --------
+    st.markdown("### 📊 Dashboard")
 
-        st.write("🏆 Top Customers")
-        for u in sorted_data[:5]:
-            st.write(f"{u['phone']} — {u['points']} pts")
-
-    elif menu == "👥 Customers":
-
-        st.subheader("👥 All Customers")
-
-        for i, row in enumerate(data, start=2):
-            col1, col2, col3 = st.columns([2,1,1])
-
-            col1.write(row["phone"])
-            col2.write(f"{row['points']} pts")
-
-            if col3.button("➕", key=i):
-                sheet.update_cell(i, 2, int(row["points"]) + 1)
-                st.rerun()
-
-        df = pd.DataFrame(data)
-        st.download_button("📥 Download CSV", df.to_csv(index=False), "customers.csv")
-
-    elif menu == "🎁 Rewards Control":
-
-        phone_input = st.text_input("Phone (+91...)")
-
-        if st.button("Reset Points"):
-            row = find_row(phone_input)
-            if row:
-                sheet.update_cell(row, 2, 0)
-                st.success("Reset Done")
-            else:
-                st.error("User not found")
-
-        if st.button("Add 1 Point"):
-            row = find_row(phone_input)
-            if row:
-                pts = int(sheet.cell(row, 2).value)
-                sheet.update_cell(row, 2, pts + 1)
-                st.success("Added")
-            else:
-                st.error("User not found")
+    st.write(f"👥 Users: {total_users}")
+    st.write(f"🎯 Total Points: {total_points}")
+    st.write(f"🔥 Today Visits: {today_visits}")
+    st.write(f"💰 Today Revenue: ₹{today_revenue}")
 
 else:
-    st.sidebar.info("Enter password to access dashboard")
+    st.sidebar.info("Enter password to view dashboard")
 
 
 # ---------------- FOOTER ----------------
