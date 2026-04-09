@@ -266,7 +266,7 @@ if st.session_state.submitted:
         st.session_state.end_screen = True
 
         st.rerun()
-        return
+st.stop()   # ✅ CORRECT
 
     # -------- NORMAL FLOW --------
     if pts == 0:
