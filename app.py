@@ -3,6 +3,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import time
+from streamlit_autorefresh import st_autorefresh  # ✅ NEW
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -161,7 +162,7 @@ if not st.session_state.submitted:
 
         if is_valid_phone(phone):
 
-            # 🔥 RESET FIX
+            # RESET FIX
             st.session_state.success_msg = False
             st.session_state.end_screen = False
             st.session_state.pay_timer_start = None
@@ -228,7 +229,10 @@ if st.session_state.submitted:
 
         st.caption("💡 Complete payment using any UPI app")
 
-        # ✅ FIXED TIMER (WORKS AFTER GPay)
+        # ✅ AUTO REFRESH
+        st_autorefresh(interval=1000, limit=10)
+
+        # TIMER
         if st.session_state.pay_timer_start is None:
             st.session_state.pay_timer_start = datetime.now()
 
