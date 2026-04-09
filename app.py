@@ -3,7 +3,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import time
-import pandas as pd
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -32,23 +31,16 @@ UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 
 
 # ---------------- SESSION ----------------
-if "phone" not in st.session_state:
-    st.session_state.phone = ""
-
-if "points" not in st.session_state:
-    st.session_state.points = 0
-
-if "paid_clicked" not in st.session_state:
-    st.session_state.paid_clicked = False
-
-if "success_msg" not in st.session_state:
-    st.session_state.success_msg = False
-
-if "submitted" not in st.session_state:
-    st.session_state.submitted = False
-
-if "end_screen" not in st.session_state:
-    st.session_state.end_screen = False
+for key, default in {
+    "phone": "",
+    "points": 0,
+    "paid_clicked": False,
+    "success_msg": False,
+    "submitted": False,
+    "end_screen": False
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 
 # ---------------- HELPERS ----------------
@@ -71,7 +63,7 @@ def find_row(phone):
 def get_user_data(phone):
     row = find_row(phone)
     if row:
-        return int(sheet.cell(row, 2).value)
+        return int(sheet.cell(row, 2).value or 0)
     return 0
 
 
@@ -79,11 +71,10 @@ def get_user_data(phone):
 def update_points(phone):
     row = find_row(phone)
     now = datetime.now()
-
     COOLDOWN_HOURS = 3
 
     if row:
-        current_points = int(sheet.cell(row, 2).value)
+        current_points = int(sheet.cell(row, 2).value or 0)
         last_time_str = sheet.cell(row, 3).value
 
         if last_time_str:
@@ -95,18 +86,13 @@ def update_points(phone):
                 return current_points, False, remaining
 
         new_points = current_points + 1
-
         sheet.update_cell(row, 2, new_points)
         sheet.update_cell(row, 3, now.strftime("%Y-%m-%d %H:%M:%S"))
 
         return new_points, True, None
 
     else:
-        sheet.append_row([
-            phone,
-            1,
-            now.strftime("%Y-%m-%d %H:%M:%S")
-        ])
+        sheet.append_row([phone, 1, now.strftime("%Y-%m-%d %H:%M:%S")])
         return 1, True, None
 
 
@@ -116,46 +102,21 @@ st.write(TAGLINE)
 st.divider()
 
 
-# ---------------- END SCREEN ----------------
-if st.session_state.end_screen:
-
-    st.markdown(f"""
-### 🎯 See you again!
-
-🔥 *{TAGLINE}*
-
-💸 Every tea = reward  
-🎁 Every 5 = FREE tea  
-
-👉 Come back soon & scan again  
-👉 More visits = more free chai ☕
-""")
-
-    st.caption("Powered by Your Startup 🚀")
-    st.stop()
-
-
-# ---------------- WELCOME SCREEN ----------------
+# ---------------- WELCOME ----------------
 if not st.session_state.submitted:
 
     st.markdown("""
 ### ☕ Welcome to RAVI TEA
 
 🔥 Morning kick chai that boosts your day  
-
 💸 Pay easily with UPI  
 🎁 Earn rewards on every tea  
 ☕ Complete 5 → Get 1 FREE  
-
-👇 Just enter your number & start earning
+👇 Enter your number
 """)
 
-    st.info("🚀 Powered by Your Startup — Smart Rewards System")
-
-    st.divider()
-
     with st.form("form"):
-        phone = st.text_input("📱 Enter your number", placeholder="+91XXXXXXXXXX")
+        phone = st.text_input("📱 Enter your number", "+91XXXXXXXXXX")
         submit = st.form_submit_button("Check")
 
     if submit:
@@ -167,135 +128,90 @@ if not st.session_state.submitted:
             st.session_state.submitted = True
             st.rerun()
         else:
-            st.error("❌ Enter valid number (+91XXXXXXXXXX)")
+            st.error("Invalid number")
 
 
-# ---------------- MAIN FLOW ----------------
+# ---------------- MAIN ----------------
 if st.session_state.submitted:
 
     phone = st.session_state.phone
     pts = st.session_state.points
 
-    # -------- SUCCESS FLOW --------
     if st.session_state.success_msg:
 
-        st.success("🎉 Payment Successful! +1 point added")
+        st.success("🎉 Payment Successful! +1 point")
 
-        st.markdown(f"""
-**at {SHOP_NAME}**
+        st.progress(min(pts / 5, 1.0))
+        st.write(f"{pts}/5 points")
 
-✅ You earned 1 point  
-🔥 Complete 5 → get FREE TEA ☕
-""")
-
-        updated_pts = st.session_state.points
-
-        st.divider()
-        st.subheader("🎁 Your Rewards")
-
-        st.progress(min(updated_pts / 5, 1.0))
-        st.write(f"🔥 {updated_pts}/5 points collected")
-
-        remaining = max(0, 5 - updated_pts)
-
-        if remaining > 0:
-            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-        else:
-            st.success("🎉 FREE TEA unlocked!")
+        if pts >= 5:
+            st.success("🎉 FREE TEA!")
             st.balloons()
 
-        time.sleep(10)
+        time.sleep(5)
 
-        st.session_state.phone = ""
-        st.session_state.points = 0
-        st.session_state.paid_clicked = False
-        st.session_state.success_msg = False
-        st.session_state.submitted = False
-        st.session_state.end_screen = True
+        for k in ["phone","points","success_msg","submitted"]:
+            st.session_state[k] = False if isinstance(st.session_state[k], bool) else ""
 
         st.rerun()
 
-    # -------- NORMAL FLOW --------
-    if pts == 0:
-        st.success("👋 Welcome! Start earning rewards 🎉")
-    else:
-        st.success(f"👋 Welcome back! You have {pts} points")
-
     if pts < 5:
 
-        st.markdown("### 💸 Get your reward")
-
-        st.link_button("👉 Pay with UPI", UPI_LINK)
-
-        st.caption("💡 Complete payment using any UPI app")
-        st.caption("👇 After payment, click below")
+        st.link_button("💸 Pay with UPI", UPI_LINK)
 
         if st.button("✅ I Paid"):
-
-            new_pts, allowed, remaining_time = update_points(phone)
+            new_pts, allowed, remaining = update_points(phone)
 
             if not allowed:
-                mins = int(remaining_time.total_seconds() // 60)
-                st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
+                mins = int(remaining.total_seconds() // 60)
+                st.warning(f"Wait {mins} mins")
             else:
                 st.session_state.points = new_pts
                 st.session_state.success_msg = True
                 st.rerun()
 
-    elif not st.session_state.success_msg:
-
-        st.divider()
-        st.subheader("🎁 Your Rewards")
-
-        st.progress(min(pts / 5, 1.0))
-        st.write(f"🔥 {pts}/5 points collected")
-
-        if pts >= 5:
-            st.success("🎉 FREE TEA unlocked!")
-            st.balloons()
+    else:
+        st.success("🎉 FREE TEA unlocked!")
 
 
-# ---------------- SIMPLE OWNER DASHBOARD ----------------
+# ---------------- SIMPLE DASHBOARD ----------------
 st.sidebar.title("🔐 Owner Panel")
 
 ADMIN_PASSWORD = "1234"
-admin_pass = st.sidebar.text_input("Enter Password", type="password")
+admin_pass = st.sidebar.text_input("Password", type="password")
 
 if admin_pass == ADMIN_PASSWORD:
 
     st.sidebar.success("Logged in")
 
-    data = sheet.get_all_records()
+    data = sheet.get_all_values()  # 🔥 FIXED
 
-    # -------- CALCULATIONS --------
-    total_users = len(data)
-    total_points = sum([int(r["points"]) for r in data if r["points"]])
+    total_users = len(data) - 1  # exclude header
 
+    total_points = 0
+    today_visits = 0
     today = datetime.now().date()
 
-    today_visits = 0
+    for row in data[1:]:
+        try:
+            pts = int(row[1])
+            total_points += pts
 
-    for r in data:
-        if r["last_time"]:
-            last = datetime.strptime(r["last_time"], "%Y-%m-%d %H:%M:%S").date()
-            if last == today:
-                today_visits += 1
+            if row[2]:
+                last = datetime.strptime(row[2], "%Y-%m-%d %H:%M:%S").date()
+                if last == today:
+                    today_visits += 1
+        except:
+            pass
 
-    TEA_PRICE = 10  # change if needed
-    today_revenue = today_visits * TEA_PRICE
+    TEA_PRICE = 10
+    revenue = today_visits * TEA_PRICE
 
-    # -------- DISPLAY --------
     st.markdown("### 📊 Dashboard")
-
     st.write(f"👥 Users: {total_users}")
     st.write(f"🎯 Total Points: {total_points}")
     st.write(f"🔥 Today Visits: {today_visits}")
-    st.write(f"💰 Today Revenue: ₹{today_revenue}")
+    st.write(f"💰 Today Revenue: ₹{revenue}")
 
 else:
-    st.sidebar.info("Enter password to view dashboard")
-
-
-# ---------------- FOOTER ----------------
-st.markdown("<br>", unsafe_allow_html=True)
-st.caption("Powered by Your Startup 🚀")
+    st.sidebar.info("Enter password")
