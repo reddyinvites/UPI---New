@@ -62,7 +62,7 @@ def is_valid_phone(phone):
 def find_row(phone):
     phones = sheet.col_values(1)
     for i, val in enumerate(phones):
-        if val == phone:
+        if clean_phone(val) == phone:
             return i + 1
     return None
 
@@ -95,21 +95,21 @@ st.divider()
 
 
 # =========================================================
-# 🟢 END SCREEN (AFTER RESET)
+# 🟢 END SCREEN
 # =========================================================
 if st.session_state.end_screen:
 
     st.markdown(f"""
-    ### 🎯 See you again!
+### 🎯 See you again!
 
-    🔥 *{TAGLINE}*
+🔥 *{TAGLINE}*
 
-    💸 Every tea = reward  
-    🎁 Every 5 = FREE tea  
+💸 Every tea = reward  
+🎁 Every 5 = FREE tea  
 
-    👉 Come back soon & scan again  
-    👉 More visits = more free chai ☕
-    """)
+👉 Come back soon & scan again  
+👉 More visits = more free chai ☕
+""")
 
     st.caption("Powered by Your Startup 🚀")
     st.stop()
@@ -121,16 +121,16 @@ if st.session_state.end_screen:
 if not st.session_state.submitted:
 
     st.markdown("""
-    ### ☕ Welcome to RAVI TEA
+### ☕ Welcome to RAVI TEA
 
-    🔥 Morning kick chai that boosts your day  
+🔥 Morning kick chai that boosts your day  
 
-    💸 Pay easily with UPI  
-    🎁 Earn rewards on every tea  
-    ☕ Complete 5 → Get 1 FREE  
+💸 Pay easily with UPI  
+🎁 Earn rewards on every tea  
+☕ Complete 5 → Get 1 FREE  
 
-    👇 Just enter your number & start earning
-    """)
+👇 Just enter your number & start earning
+""")
 
     st.info("🚀 Powered by Your Startup — Smart Rewards System")
 
@@ -148,6 +148,8 @@ if not st.session_state.submitted:
             st.session_state.points = get_user_data(phone)
             st.session_state.submitted = True
             st.rerun()
+        else:
+            st.error("❌ Enter valid number (+91XXXXXXXXXX)")
 
 
 # =========================================================
@@ -158,13 +160,14 @@ if st.session_state.submitted:
     phone = st.session_state.phone
     pts = st.session_state.points
 
-    st.success(f"👋 Welcome back! You have {pts} points")
+    # ✅ FIX: new vs old user
+    if pts == 0:
+        st.success("👋 Welcome! Start earning rewards 🎉")
+    else:
+        st.success(f"👋 Welcome back! You have {pts} points")
 
-    if pts >= 5:
-        st.success("🎉 FREE TEA unlocked!")
-        st.markdown("👉 Show this screen to shop owner ☕")
-
-    elif not st.session_state.paid_clicked:
+    # ---------------- PAYMENT ----------------
+    if pts < 5 and not st.session_state.paid_clicked:
 
         st.markdown("### 💸 Get your reward")
 
@@ -175,46 +178,46 @@ if st.session_state.submitted:
 
         if st.button("✅ I Paid"):
             st.session_state.paid_clicked = True
+
             new_pts = update_points(phone)
             st.session_state.points = new_pts
+
             st.session_state.success_msg = True
             st.rerun()
 
+    # ---------------- SUCCESS ----------------
+    if st.session_state.success_msg:
 
-# ---------------- SUCCESS ----------------
-if st.session_state.success_msg:
+        st.success("🎉 Payment Successful! +1 point added")
 
-    st.success("🎉 Payment Successful! +1 point added")
+        st.markdown(f"""
+**at {SHOP_NAME}**
 
-    st.markdown(f"""
-    **at {SHOP_NAME}**
+✅ You earned 1 point  
+🔥 Complete 5 → get FREE TEA ☕
+""")
 
-    ✅ You earned 1 point  
-    🔥 Complete 5 → get FREE TEA ☕
-    """)
+    # ---------------- REWARDS (FIXED NO DUPLICATE) ----------------
+    if not st.session_state.success_msg:
 
+        points = st.session_state.points
 
-# ---------------- REWARDS (ONLY ONCE) ----------------
-if st.session_state.submitted:
+        st.divider()
+        st.subheader("🎁 Your Rewards")
 
-    points = st.session_state.points
+        st.progress(min(points / 5, 1.0))
+        st.write(f"🔥 {points}/5 points collected")
 
-    st.divider()
-    st.subheader("🎁 Your Rewards")
+        remaining = max(0, 5 - points)
 
-    st.progress(min(points / 5, 1.0))
-    st.write(f"🔥 {points}/5 points collected")
-
-    remaining = max(0, 5 - points)
-
-    if remaining > 0:
-        st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-    else:
-        st.success("🎉 FREE TEA unlocked!")
+        if remaining > 0:
+            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        else:
+            st.success("🎉 FREE TEA unlocked!")
 
 
 # =========================================================
-# 🔁 AUTO RESET → SHOW END SCREEN (10 sec delay)
+# 🔁 AUTO RESET → END SCREEN AFTER 10 SEC
 # =========================================================
 if st.session_state.success_msg:
 
