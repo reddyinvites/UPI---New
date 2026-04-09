@@ -74,7 +74,7 @@ def get_user_data(phone):
     return 0
 
 
-# ---------------- COOLDOWN LOGIC ----------------
+# ---------------- COOLDOWN ----------------
 def update_points(phone):
     row = find_row(phone)
     now = datetime.now()
@@ -202,8 +202,17 @@ if st.session_state.submitted:
         else:
             st.success("🎉 FREE TEA unlocked!")
 
-        # ✅ CRITICAL FIX (STOP DUPLICATE)
-        st.stop()
+        # ✅ WAIT + RESET + END SCREEN
+        time.sleep(10)
+
+        st.session_state.phone = ""
+        st.session_state.points = 0
+        st.session_state.paid_clicked = False
+        st.session_state.success_msg = False
+        st.session_state.submitted = False
+        st.session_state.end_screen = True
+
+        st.rerun()
 
     # -------- NORMAL FLOW --------
     if pts == 0:
@@ -232,34 +241,21 @@ if st.session_state.submitted:
                 st.session_state.success_msg = True
                 st.rerun()
 
-    # -------- REWARDS --------
-    st.divider()
-    st.subheader("🎁 Your Rewards")
+    # -------- REWARDS (ONLY ONCE) --------
+    if not st.session_state.success_msg:
 
-    st.progress(min(pts / 5, 1.0))
-    st.write(f"🔥 {pts}/5 points collected")
+        st.divider()
+        st.subheader("🎁 Your Rewards")
 
-    remaining = max(0, 5 - pts)
+        st.progress(min(pts / 5, 1.0))
+        st.write(f"🔥 {pts}/5 points collected")
 
-    if remaining > 0:
-        st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-    else:
-        st.success("🎉 FREE TEA unlocked!")
+        remaining = max(0, 5 - pts)
 
-
-# ---------------- AUTO RESET ----------------
-if st.session_state.success_msg:
-
-    time.sleep(10)
-
-    st.session_state.phone = ""
-    st.session_state.points = 0
-    st.session_state.paid_clicked = False
-    st.session_state.success_msg = False
-    st.session_state.submitted = False
-    st.session_state.end_screen = True
-
-    st.rerun()
+        if remaining > 0:
+            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        else:
+            st.success("🎉 FREE TEA unlocked!")
 
 
 # ---------------- FOOTER ----------------
