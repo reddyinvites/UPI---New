@@ -228,21 +228,31 @@ if st.session_state.submitted:
 
         st.caption("💡 Complete payment using any UPI app")
 
-        # ✅ AUTO REFRESH
-        st_autorefresh(interval=1000, limit=10)
+        # ⏳ NO INSTALL TIMER FIX
+        if st.session_state.pay_timer_start is None:
+            st.session_state.pay_timer_start = datetime.now()
 
-        # TIMER
-        # ⏳ SIMPLE AUTO ENABLE (NO LIBRARY)
+        elapsed = (datetime.now() - st.session_state.pay_timer_start).total_seconds()
 
-if st.session_state.pay_timer_start is None:
-    st.session_state.pay_timer_start = datetime.now()
+        if elapsed < 3:
+            st.warning("👉 Open UPI app & come back to confirm")
+            st.button("⏳ Waiting...", disabled=True)
+            st.stop()
 
-elapsed = (datetime.now() - st.session_state.pay_timer_start).total_seconds()
+        st.caption("👇 After payment, click below")
 
-if elapsed < 3:
-    st.warning("👉 Open UPI app & come back to confirm")
-    st.button("⏳ Waiting...", disabled=True)
-    st.stop()   # 🔥 IMPORTANT
+        if st.button("✅ I Paid"):
+
+            new_pts, allowed, remaining_time = update_points(phone)
+
+            if not allowed:
+                mins = int(remaining_time.total_seconds() // 60)
+                st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
+            else:
+                st.session_state.points = new_pts
+                st.session_state.success_msg = True
+                st.session_state.pay_timer_start = None
+                st.rerun()
 
     # -------- REWARDS --------
     if not st.session_state.success_msg:
