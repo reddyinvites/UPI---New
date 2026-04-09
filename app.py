@@ -49,7 +49,7 @@ if "submitted" not in st.session_state:
 if "end_screen" not in st.session_state:
     st.session_state.end_screen = False
 
-# ✅ NEW (Owner session)
+# ✅ NEW (owner session)
 if "is_owner" not in st.session_state:
     st.session_state.is_owner = False
 
@@ -113,7 +113,7 @@ def update_points(phone):
         return 1, True, None
 
 
-# ---------------- OWNER DASHBOARD FUNCTION ----------------
+# ---------------- DASHBOARD FIXED FUNCTION ----------------
 def get_dashboard_data():
     data = sheet.get_all_records()
 
@@ -124,12 +124,17 @@ def get_dashboard_data():
     today = datetime.now().date()
 
     for row in data:
-        pts = int(row.get("points", 0))
+        pts = int(row.get("Points", 0))  # ✅ FIX
         total_points += pts
 
-        last_time = row.get("last_time", "")
+        last_time = row.get("Last Visit", "")  # ✅ FIX
+
         if last_time:
-            dt = datetime.strptime(last_time, "%Y-%m-%d %H:%M:%S")
+            try:
+                dt = datetime.strptime(last_time, "%Y-%m-%d %H:%M:%S")
+            except:
+                dt = datetime.strptime(last_time, "%Y-%m-%d %H:%M")
+
             if dt.date() == today:
                 today_visits += 1
 
@@ -159,7 +164,7 @@ st.write(TAGLINE)
 st.divider()
 
 
-# ---------------- OWNER DASHBOARD UI ----------------
+# ---------------- OWNER DASHBOARD ONLY ----------------
 if st.session_state.is_owner:
 
     st.markdown("## 📊 Dashboard")
@@ -175,6 +180,8 @@ if st.session_state.is_owner:
     col4.metric("💰 Today Revenue", f"₹{revenue}")
 
     st.divider()
+
+    st.stop()  # ✅ BLOCK USER UI
 
 
 # ---------------- END SCREEN ----------------
