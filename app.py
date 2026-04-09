@@ -43,6 +43,13 @@ if "success_msg" not in st.session_state:
     st.session_state.success_msg = False
 
 
+# ---------------- AUTO-FILL FROM URL ----------------
+query_params = st.query_params
+
+if "phone" in query_params and not st.session_state.phone:
+    st.session_state.phone = query_params["phone"]
+
+
 # ---------------- CLEAN PHONE ----------------
 def clean_phone(p):
     return str(p).strip().replace(" ", "")
@@ -108,7 +115,7 @@ phone = st.text_input(
     "📱 Enter your number to check rewards",
     value=st.session_state.phone,
     placeholder="+91XXXXXXXXXX",
-    disabled=st.session_state.paid_clicked   # ✅ FIX
+    disabled=st.session_state.paid_clicked
 )
 
 phone_clean = clean_phone(phone)
@@ -116,8 +123,15 @@ phone_clean = clean_phone(phone)
 if is_valid_phone(phone_clean):
 
     st.session_state.phone = phone_clean
+
+    # ✅ SAVE IN URL (AUTO-FILL NEXT TIME)
+    st.query_params["phone"] = phone_clean
+
     pts, last = get_user_data(phone_clean)
     st.session_state.points = pts
+
+    # ✅ WELCOME BACK MESSAGE
+    st.success(f"👋 Welcome back! You have {pts} points")
 
     if not st.session_state.paid_clicked:
 
@@ -139,7 +153,6 @@ if is_valid_phone(phone_clean):
                 disabled=st.session_state.paid_clicked
             )
 
-            # ✅ ONLY CHANGE → INSTANT HIDE
             if paid_btn and not st.session_state.paid_clicked:
 
                 st.session_state.paid_clicked = True
@@ -149,7 +162,6 @@ if is_valid_phone(phone_clean):
 
                 st.session_state.success_msg = True
 
-                # 🔥 INSTANT REFRESH
                 st.rerun()
 
 
