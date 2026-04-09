@@ -46,7 +46,6 @@ def clean_phone(p):
     return str(p).strip().replace(" ", "")
 
 
-# ---------------- VALIDATION ----------------
 def is_valid_phone(phone):
     phone = clean_phone(phone)
     return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
@@ -54,44 +53,40 @@ def is_valid_phone(phone):
 
 # ---------------- FIND ROW ----------------
 def find_row(phone):
-    phones = sheet.col_values(1)
     phone = clean_phone(phone)
+    phones = sheet.col_values(1)
 
     for i, val in enumerate(phones):
         if clean_phone(val) == phone:
             return i + 1
+
     return None
 
 
-# ---------------- GET POINTS ----------------
-def get_points(phone):
+# ---------------- GET USER DATA ----------------
+def get_user_data(phone):
     row = find_row(phone)
     if row:
-        return int(sheet.cell(row, 2).value)
-    return 0
+        pts = int(sheet.cell(row, 2).value)
+        last = sheet.cell(row, 3).value
+        return pts, last
+    return 0, None
 
 
 # ---------------- UPDATE POINTS ----------------
 def update_points(phone):
+    phone = clean_phone(phone)
     row = find_row(phone)
     now = datetime.now()
 
     if row:
         current_points = int(sheet.cell(row, 2).value)
-        last_time_str = sheet.cell(row, 3).value
-
-        if last_time_str:
-            last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S")
-            if now - last_time < timedelta(hours=2):
-                return current_points
-
-        new_points = min(current_points + 1, 5)
+        new_points = current_points + 1
 
         sheet.update_cell(row, 2, new_points)
         sheet.update_cell(row, 3, now.strftime("%Y-%m-%d %H:%M:%S"))
 
         return new_points
-
     else:
         sheet.append_row([
             phone,
@@ -114,44 +109,40 @@ phone = st.text_input(
     placeholder="+91XXXXXXXXXX"
 )
 
-phone = clean_phone(phone)
+phone_clean = clean_phone(phone)
 
-if is_valid_phone(phone):
-    st.session_state.phone = phone
-    st.session_state.points = get_points(phone)
+if is_valid_phone(phone_clean):
 
+    st.session_state.phone = phone_clean
+    pts, last = get_user_data(phone_clean)
+    st.session_state.points = pts
 
-# ---------------- FREE TEA STATE ----------------
-if st.session_state.points >= 5:
-    st.success("🎉 FREE TEA unlocked!")
-    st.markdown("👉 Show this screen to shop owner ☕")
+    # ---------------- FREE TEA CHECK ----------------
+    if pts >= 5:
+        st.success("🎉 FREE TEA unlocked!")
+        st.markdown("👉 Show this screen to shop owner ☕")
 
-else:
-    # ---------------- PAYMENT ----------------
-    st.markdown("### 💸 Get your reward")
-    st.link_button("👉 Pay with UPI", UPI_LINK)
+    else:
+        # ---------------- PAYMENT ----------------
+        st.markdown("### 💸 Get your reward")
+        st.link_button("👉 Pay with UPI", UPI_LINK)
 
-    st.markdown("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
-    st.markdown("👇 After payment, click below to collect your reward")
+        st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
+        st.caption("👇 After payment, click below to collect your reward")
 
-    # ---------------- PAID BUTTON ----------------
-    paid_btn = st.button(
-        "✅ I Paid",
-        disabled=st.session_state.paid_clicked
-    )
+        # ✅ DISABLE BUTTON AFTER CLICK
+        paid_btn = st.button(
+            "✅ I Paid",
+            disabled=st.session_state.paid_clicked
+        )
 
-    if paid_btn and not st.session_state.paid_clicked:
+        if paid_btn and not st.session_state.paid_clicked:
 
-        if not is_valid_phone(phone):
-            st.error("❌ Enter valid number first")
-        else:
             st.session_state.paid_clicked = True
 
-            # 🔥 Update points
-            new_points = update_points(phone)
+            new_points = update_points(phone_clean)
             st.session_state.points = new_points
 
-            # 🎉 SUCCESS MESSAGE
             st.success("🎉 Payment Successful! +1 point added")
 
             st.markdown(f"""
@@ -161,11 +152,8 @@ else:
             🔥 Complete 5 → get FREE TEA ☕
             """)
 
-            # ⏳ small delay (UX feel)
             time.sleep(2)
-
-            # 🔓 allow next click later
-            st.session_state.paid_clicked = False
+            st.rerun()
 
 
 # ---------------- SHOW REWARDS ----------------
@@ -182,12 +170,9 @@ if st.session_state.phone:
     remaining = max(0, 5 - points)
 
     if remaining > 0:
-        st.markdown(
-            f"🔥 {remaining} more tea{'s' if remaining > 1 else ''} to get FREE TEA ☕"
-        )
+        st.markdown(f"🔥 {remaining} more tea{'s' if remaining > 1 else ''} to get FREE TEA ☕")
     else:
         st.success("🎉 FREE TEA unlocked!")
-
 
 # ---------------- FOOTER ----------------
 st.markdown("<br>", unsafe_allow_html=True)
