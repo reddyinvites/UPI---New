@@ -153,41 +153,14 @@ if not st.session_state.submitted:
 
 
 # =========================================================
-# 🟢 MAIN FLOW
+# 🟢 MAIN FLOW (FIXED ORDER)
 # =========================================================
 if st.session_state.submitted:
 
     phone = st.session_state.phone
     pts = st.session_state.points
 
-    # ✅ New vs returning
-    if pts == 0:
-        st.success("👋 Welcome! Start earning rewards 🎉")
-    else:
-        st.success(f"👋 Welcome back! You have {pts} points")
-
-    # ---------------- PAYMENT ----------------
-    if pts < 5 and not st.session_state.success_msg:
-
-        st.markdown("### 💸 Get your reward")
-
-        st.link_button("👉 Pay with UPI", UPI_LINK)
-
-        st.caption("💡 Complete payment using any UPI app")
-        st.caption("👇 After payment, click below")
-
-        if st.button("✅ I Paid"):
-            st.session_state.paid_clicked = True
-
-            new_pts = update_points(phone)
-            st.session_state.points = new_pts
-
-            st.session_state.success_msg = True
-
-            st.rerun()
-            st.stop()   # 🔥 FIX: remove old UI immediately
-
-    # ---------------- SUCCESS ----------------
+    # 🔥 STEP 1: HANDLE SUCCESS FIRST (CRITICAL FIX)
     if st.session_state.success_msg:
 
         st.success("🎉 Payment Successful! +1 point added")
@@ -202,29 +175,51 @@ if st.session_state.submitted:
         if st.session_state.points >= 5:
             st.success("🎉 FREE TEA unlocked!")
             st.markdown("👉 Show this screen to shop owner ☕")
-            st.stop()
+
+        st.stop()   # 🔥 STOPS OLD UI
+
+    # 🔥 STEP 2: NORMAL FLOW
+
+    if pts == 0:
+        st.success("👋 Welcome! Start earning rewards 🎉")
+    else:
+        st.success(f"👋 Welcome back! You have {pts} points")
+
+    # ---------------- PAYMENT ----------------
+    if pts < 5:
+
+        st.markdown("### 💸 Get your reward")
+
+        st.link_button("👉 Pay with UPI", UPI_LINK)
+
+        st.caption("💡 Complete payment using any UPI app")
+        st.caption("👇 After payment, click below")
+
+        if st.button("✅ I Paid"):
+            new_pts = update_points(phone)
+
+            st.session_state.points = new_pts
+            st.session_state.success_msg = True
+
+            st.rerun()
 
     # ---------------- REWARDS ----------------
-    if not st.session_state.success_msg:
+    st.divider()
+    st.subheader("🎁 Your Rewards")
 
-        points = st.session_state.points
+    st.progress(min(pts / 5, 1.0))
+    st.write(f"🔥 {pts}/5 points collected")
 
-        st.divider()
-        st.subheader("🎁 Your Rewards")
+    remaining = max(0, 5 - pts)
 
-        st.progress(min(points / 5, 1.0))
-        st.write(f"🔥 {points}/5 points collected")
-
-        remaining = max(0, 5 - points)
-
-        if remaining > 0:
-            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-        else:
-            st.success("🎉 FREE TEA unlocked!")
+    if remaining > 0:
+        st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+    else:
+        st.success("🎉 FREE TEA unlocked!")
 
 
 # =========================================================
-# 🔁 AUTO RESET → END SCREEN AFTER 10 SEC
+# 🔁 AUTO RESET → END SCREEN
 # =========================================================
 if st.session_state.success_msg:
 
@@ -232,7 +227,6 @@ if st.session_state.success_msg:
 
     st.session_state.phone = ""
     st.session_state.points = 0
-    st.session_state.paid_clicked = False
     st.session_state.success_msg = False
     st.session_state.submitted = False
     st.session_state.end_screen = True
