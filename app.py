@@ -43,6 +43,10 @@ if "paid_clicked" not in st.session_state:
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = False
 
+# ✅ NEW FLAG (end screen control)
+if "show_end_screen" not in st.session_state:
+    st.session_state.show_end_screen = False
+
 
 # ---------------- CLEAN PHONE ----------------
 def clean_phone(p):
@@ -105,7 +109,25 @@ st.write(TAGLINE)
 st.divider()
 
 
-# ---------------- BRAND SCREEN (ONLY ADDITION) ----------------
+# ---------------- END SCREEN (ONLY BRAND) ----------------
+if st.session_state.show_end_screen:
+
+    st.markdown("""
+    ### ☕ Welcome to RAVI TEA
+
+    🔥 *Morning kick chai that boosts your day*
+
+    💸 Pay easily with UPI  
+    🎁 Earn rewards on every tea  
+    ☕ Complete 5 → Get 1 FREE  
+    """)
+
+    st.info("🚀 Powered by Your Startup — Smart Rewards System")
+
+    st.stop()  # ⛔ stop everything below
+
+
+# ---------------- BRAND SCREEN (INITIAL) ----------------
 if st.session_state.phone == "":
 
     st.markdown("""
@@ -116,8 +138,6 @@ if st.session_state.phone == "":
     💸 Pay easily with UPI  
     🎁 Earn rewards on every tea  
     ☕ Complete 5 → Get 1 FREE  
-
-    👇 Just enter your number & start earning
     """)
 
     st.info("🚀 Powered by Your Startup — Smart Rewards System")
@@ -125,7 +145,7 @@ if st.session_state.phone == "":
 
 # ---------------- PHONE INPUT ----------------
 phone = st.text_input(
-    "📱 Enter your number to check rewards",
+    "",
     value=st.session_state.phone,
     placeholder="+91XXXXXXXXXX",
     disabled=st.session_state.paid_clicked
@@ -136,6 +156,8 @@ phone_clean = clean_phone(phone)
 if is_valid_phone(phone_clean):
 
     st.session_state.phone = phone_clean
+    st.session_state.show_end_screen = False  # ✅ return to normal flow
+
     pts, last = get_user_data(phone_clean)
     st.session_state.points = pts
 
@@ -215,6 +237,7 @@ if st.session_state.success_msg:
     st.session_state.points = 0
     st.session_state.paid_clicked = False
     st.session_state.success_msg = False
+    st.session_state.show_end_screen = True  # ✅ show brand-only screen
 
     st.rerun()
 
