@@ -43,10 +43,6 @@ if "paid_clicked" not in st.session_state:
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = False
 
-# ✅ NEW (brand screen control)
-if "show_brand_only" not in st.session_state:
-    st.session_state.show_brand_only = True
-
 
 # ---------------- CLEAN PHONE ----------------
 def clean_phone(p):
@@ -109,18 +105,22 @@ st.write(TAGLINE)
 st.divider()
 
 
-# ---------------- BRAND SCREEN ----------------
-if st.session_state.show_brand_only:
+# ---------------- BRAND SCREEN (ONLY ADDITION) ----------------
+if st.session_state.phone == "":
 
     st.markdown("""
     ### ☕ Welcome to RAVI TEA
 
-    🔥 Fresh chai. Every time  
-    💸 Pay easily with UPI  
-    🎁 Earn rewards & get FREE tea  
+    🔥 *Morning kick chai that boosts your day*
 
-    👇 Enter your number to continue
+    💸 Pay easily with UPI  
+    🎁 Earn rewards on every tea  
+    ☕ Complete 5 → Get 1 FREE  
+
+    👇 Just enter your number & start earning
     """)
+
+    st.info("🚀 Powered by Your Startup — Smart Rewards System")
 
 
 # ---------------- PHONE INPUT ----------------
@@ -136,18 +136,18 @@ phone_clean = clean_phone(phone)
 if is_valid_phone(phone_clean):
 
     st.session_state.phone = phone_clean
-    st.session_state.show_brand_only = False  # ✅ hide brand screen
-
     pts, last = get_user_data(phone_clean)
     st.session_state.points = pts
 
     if not st.session_state.paid_clicked:
 
+        # ---------------- FREE TEA ----------------
         if pts >= 5:
             st.success("🎉 FREE TEA unlocked!")
             st.markdown("👉 Show this screen to shop owner ☕")
 
         else:
+            # ---------------- PAYMENT ----------------
             st.markdown("### 💸 Get your reward")
             st.link_button(
                 "👉 Pay with UPI",
@@ -215,7 +215,6 @@ if st.session_state.success_msg:
     st.session_state.points = 0
     st.session_state.paid_clicked = False
     st.session_state.success_msg = False
-    st.session_state.show_brand_only = True  # ✅ back to brand screen
 
     st.rerun()
 
