@@ -3,7 +3,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import time
-from streamlit_autorefresh import st_autorefresh  # ✅ NEW
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
