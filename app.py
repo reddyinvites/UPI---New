@@ -107,7 +107,8 @@ st.divider()
 phone = st.text_input(
     "📱 Enter your number to check rewards",
     value=st.session_state.phone,
-    placeholder="+91XXXXXXXXXX"
+    placeholder="+91XXXXXXXXXX",
+    disabled=st.session_state.paid_clicked   # ✅ FIX
 )
 
 phone_clean = clean_phone(phone)
