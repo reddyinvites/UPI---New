@@ -24,70 +24,6 @@ sheet = client.open_by_url(
 ).sheet1
 
 
-# ================= OWNER PANEL =================
-OWNER_PASSWORD = "admin123"
-
-if "owner_logged" not in st.session_state:
-    st.session_state.owner_logged = False
-
-with st.sidebar:
-
-    st.markdown("## 🔐 Owner Panel")
-
-    # -------- LOGIN --------
-    if not st.session_state.owner_logged:
-
-        pwd = st.text_input("Enter password", type="password")
-
-        if st.button("Login"):
-            if pwd == OWNER_PASSWORD:
-                st.session_state.owner_logged = True
-                st.rerun()   # 🔥 IMPORTANT
-            else:
-                st.error("Wrong password ❌")
-
-    # -------- DASHBOARD --------
-    else:
-        st.success("Logged in ✅")
-
-        if st.button("Logout"):
-            st.session_state.owner_logged = False
-            st.rerun()
-
-        st.divider()
-
-        # 🔥 FETCH DATA
-        data = sheet.get_all_values()
-
-        total_users = len(data) - 1 if len(data) > 1 else 0
-
-        total_points = 0
-        today_visits = 0
-        today = datetime.now().date()
-
-        for row in data[1:]:
-            try:
-                pts = int(row[1])
-                total_points += pts
-
-                if len(row) > 2 and row[2]:
-                    last = datetime.strptime(row[2], "%Y-%m-%d %H:%M:%S")
-                    if last.date() == today:
-                        today_visits += 1
-            except:
-                pass
-
-        tea_price = 10
-        today_revenue = today_visits * tea_price
-
-        # 🔥 DISPLAY
-        st.markdown("## 📊 Dashboard")
-        st.write(f"👥 Users: {total_users}")
-        st.write(f"🎯 Total Points: {total_points}")
-        st.write(f"🔥 Today Visits: {today_visits}")
-        st.write(f"💰 Today Revenue: ₹{today_revenue}")
-
-
 # ---------------- SHOP INFO ----------------
 SHOP_NAME = "RAVI TEA ☕"
 TAGLINE = "Morning kick chai 🔥"
@@ -100,6 +36,9 @@ if "phone" not in st.session_state:
 
 if "points" not in st.session_state:
     st.session_state.points = 0
+
+if "paid_clicked" not in st.session_state:
+    st.session_state.paid_clicked = False
 
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = False
@@ -162,7 +101,11 @@ def update_points(phone):
         return new_points, True, None
 
     else:
-        sheet.append_row([phone, 1, now.strftime("%Y-%m-%d %H:%M:%S")])
+        sheet.append_row([
+            phone,
+            1,
+            now.strftime("%Y-%m-%d %H:%M:%S")
+        ])
         return 1, True, None
 
 
@@ -191,7 +134,7 @@ if st.session_state.end_screen:
     st.stop()
 
 
-# ---------------- WELCOME ----------------
+# ---------------- WELCOME SCREEN ----------------
 if not st.session_state.submitted:
 
     st.markdown("""
@@ -202,7 +145,11 @@ if not st.session_state.submitted:
 💸 Pay easily with UPI  
 🎁 Earn rewards on every tea  
 ☕ Complete 5 → Get 1 FREE  
+
+👇 Just enter your number & start earning
 """)
+
+    st.info("🚀 Powered by Your Startup — Smart Rewards System")
 
     st.divider()
 
@@ -219,7 +166,7 @@ if not st.session_state.submitted:
             st.session_state.submitted = True
             st.rerun()
         else:
-            st.error("❌ Enter valid number")
+            st.error("❌ Enter valid number (+91XXXXXXXXXX)")
 
 
 # ---------------- MAIN FLOW ----------------
@@ -228,52 +175,89 @@ if st.session_state.submitted:
     phone = st.session_state.phone
     pts = st.session_state.points
 
-    # -------- SUCCESS --------
+    # -------- SUCCESS FLOW --------
     if st.session_state.success_msg:
 
         st.success("🎉 Payment Successful! +1 point added")
 
+        st.markdown(f"""
+**at {SHOP_NAME}**
+
+✅ You earned 1 point  
+🔥 Complete 5 → get FREE TEA ☕
+""")
+
+        updated_pts = st.session_state.points
+
         st.divider()
         st.subheader("🎁 Your Rewards")
 
-        st.progress(min(pts / 5, 1.0))
-        st.write(f"{pts}/5 points")
+        st.progress(min(updated_pts / 5, 1.0))
+        st.write(f"🔥 {updated_pts}/5 points collected")
 
+        remaining = max(0, 5 - updated_pts)
+
+        if remaining > 0:
+            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        else:
+            st.success("🎉 FREE TEA unlocked!")
+
+        # ✅ WAIT + RESET + END SCREEN
         time.sleep(10)
 
         st.session_state.phone = ""
         st.session_state.points = 0
+        st.session_state.paid_clicked = False
         st.session_state.success_msg = False
         st.session_state.submitted = False
         st.session_state.end_screen = True
 
         st.rerun()
-        st.stop()
 
-    # -------- NORMAL --------
+    # -------- NORMAL FLOW --------
     if pts == 0:
-        st.success("👋 Welcome!")
+        st.success("👋 Welcome! Start earning rewards 🎉")
     else:
-        st.success(f"👋 You have {pts} points")
+        st.success(f"👋 Welcome back! You have {pts} points")
 
-    st.link_button("👉 Pay with UPI", UPI_LINK)
+    if pts < 5:
 
-    if st.button("✅ I Paid"):
+        st.markdown("### 💸 Get your reward")
 
-        new_pts, allowed, _ = update_points(phone)
+        st.link_button("👉 Pay with UPI", UPI_LINK)
 
-        if allowed:
-            st.session_state.points = new_pts
-            st.session_state.success_msg = True
-            st.rerun()
+        st.caption("💡 Complete payment using any UPI app")
+        st.caption("👇 After payment, click below")
 
-    # -------- REWARDS --------
-    st.divider()
-    st.subheader("🎁 Your Rewards")
+        if st.button("✅ I Paid"):
 
-    st.progress(min(pts / 5, 1.0))
-    st.write(f"{pts}/5 points")
+            new_pts, allowed, remaining_time = update_points(phone)
+
+            if not allowed:
+                mins = int(remaining_time.total_seconds() // 60)
+                st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
+            else:
+                st.session_state.points = new_pts
+                st.session_state.success_msg = True
+                st.rerun()
+
+    # -------- REWARDS (ONLY ONCE) --------
+    elif not st.session_state.success_msg:
+
+        st.divider()
+        st.subheader("🎁 Your Rewards")
+
+        st.progress(min(pts / 5, 1.0))
+        st.write(f"🔥 {pts}/5 points collected")
+
+        remaining = max(0, 5 - pts)
+
+        if remaining > 0:
+            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        else:
+            st.success("🎉 FREE TEA unlocked!")
 
 
 # ---------------- FOOTER ----------------
+st.markdown("<br>", unsafe_allow_html=True)
 st.caption("Powered by Your Startup 🚀")
