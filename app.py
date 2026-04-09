@@ -1,7 +1,7 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime, timedelta
+from datetime import datetime
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -39,7 +39,6 @@ if "points" not in st.session_state:
 if "paid_clicked" not in st.session_state:
     st.session_state.paid_clicked = False
 
-# ✅ NEW (for permanent success message)
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = False
 
@@ -62,7 +61,6 @@ def find_row(phone):
     for i, val in enumerate(phones):
         if clean_phone(val) == phone:
             return i + 1
-
     return None
 
 
@@ -120,37 +118,41 @@ if is_valid_phone(phone_clean):
     pts, last = get_user_data(phone_clean)
     st.session_state.points = pts
 
-    # ---------------- FREE TEA CHECK ----------------
-    if pts >= 5:
-        st.success("🎉 FREE TEA unlocked!")
-        st.markdown("👉 Show this screen to shop owner ☕")
+    if not st.session_state.paid_clicked:
 
-    else:
-        # ---------------- PAYMENT ----------------
-        st.markdown("### 💸 Get your reward")
-        st.link_button("👉 Pay with UPI", UPI_LINK)
+        # ---------------- FREE TEA CHECK ----------------
+        if pts >= 5:
+            st.success("🎉 FREE TEA unlocked!")
+            st.markdown("👉 Show this screen to shop owner ☕")
 
-        st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
-        st.caption("👇 After payment, click below to collect your reward")
+        else:
+            # ---------------- PAYMENT ----------------
+            st.markdown("### 💸 Get your reward")
+            st.link_button("👉 Pay with UPI", UPI_LINK)
 
-        # ✅ BUTTON DISABLE
-        paid_btn = st.button(
-            "✅ I Paid",
-            disabled=st.session_state.paid_clicked
-        )
+            st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
+            st.caption("👇 After payment, click below to collect your reward")
 
-        if paid_btn and not st.session_state.paid_clicked:
+            paid_btn = st.button(
+                "✅ I Paid",
+                disabled=st.session_state.paid_clicked
+            )
 
-            st.session_state.paid_clicked = True
+            # ✅ ONLY CHANGE → INSTANT HIDE
+            if paid_btn and not st.session_state.paid_clicked:
 
-            new_points = update_points(phone_clean)
-            st.session_state.points = new_points
+                st.session_state.paid_clicked = True
 
-            # ✅ STORE SUCCESS STATE (NO RERUN)
-            st.session_state.success_msg = True
+                new_points = update_points(phone_clean)
+                st.session_state.points = new_points
+
+                st.session_state.success_msg = True
+
+                # 🔥 INSTANT REFRESH
+                st.rerun()
 
 
-# ---------------- SUCCESS MESSAGE (PERMANENT) ----------------
+# ---------------- SUCCESS MESSAGE ----------------
 if st.session_state.success_msg:
     st.success("🎉 Payment Successful! +1 point added")
 
