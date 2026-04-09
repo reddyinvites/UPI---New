@@ -30,17 +30,11 @@ UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 
 
 # ---------------- SESSION ----------------
-if "paid" not in st.session_state:
-    st.session_state.paid = False
-
-if "last_click_time" not in st.session_state:
-    st.session_state.last_click_time = None
+if "points" not in st.session_state:
+    st.session_state.points = 0
 
 if "phone" not in st.session_state:
     st.session_state.phone = ""
-
-if "points" not in st.session_state:
-    st.session_state.points = 0
 
 
 # ---------------- HELPERS ----------------
@@ -48,78 +42,48 @@ def clean_phone(p):
     return str(p).strip().replace(" ", "")
 
 def is_valid_phone(phone):
-    phone = clean_phone(phone)
-    return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
+    return phone.startswith("+91") and len(phone) == 13
 
 def find_row(phone):
-    phone = clean_phone(phone)
     phones = sheet.col_values(1)
     for i, val in enumerate(phones):
         if clean_phone(val) == phone:
             return i + 1
     return None
 
+
 def load_user(phone):
     row = find_row(phone)
     if row:
         points = int(sheet.cell(row, 2).value)
-        st.session_state.phone = phone
         st.session_state.points = points
+        st.session_state.phone = phone
+    else:
+        st.session_state.points = 0
+        st.session_state.phone = phone
 
 
-# ---------------- UPDATE POINTS ----------------
 def update_points(phone):
-    phone = clean_phone(phone)
     row = find_row(phone)
     now = datetime.now()
 
     if row:
-        current_points = int(sheet.cell(row, 2).value)
-        last_time_str = sheet.cell(row, 3).value
+        current = int(sheet.cell(row, 2).value)
 
-        if last_time_str:
-            last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S")
-            diff = now - last_time
+        new_points = current + 1
 
-            if diff < timedelta(hours=2):
-                remaining = timedelta(hours=2) - diff
-                return current_points, False, remaining
-
-        new_points = current_points + 1
-
-        # 🔁 RESET AFTER FREE TEA
+        # RESET AFTER FREE TEA
         if new_points > 5:
             new_points = 1
 
         sheet.update_cell(row, 2, new_points)
         sheet.update_cell(row, 3, now.strftime("%Y-%m-%d %H:%M:%S"))
 
-        return new_points, True, None
+        return new_points
 
     else:
-        sheet.append_row([
-            phone,
-            1,
-            now.strftime("%Y-%m-%d %H:%M:%S")
-        ])
-        return 1, True, None
-
-
-# ---------------- FRAUD PROTECTION ----------------
-def can_click():
-    now = datetime.now()
-
-    if st.session_state.last_click_time is None:
-        st.session_state.last_click_time = now
-        return True
-
-    diff = (now - st.session_state.last_click_time).seconds
-
-    if diff < 5:
-        return False
-    else:
-        st.session_state.last_click_time = now
-        return True
+        sheet.append_row([phone, 1, now.strftime("%Y-%m-%d %H:%M:%S")])
+        return 1
 
 
 # ---------------- UI ----------------
@@ -128,24 +92,23 @@ st.write(TAGLINE)
 
 st.divider()
 
-# ---------------- SINGLE PHONE INPUT ----------------
+# ---------------- NUMBER INPUT ----------------
 phone = st.text_input(
-    "📱 Enter your number",
+    "📱 Enter your number to check rewards",
     value=st.session_state.phone,
     placeholder="+91XXXXXXXXXX"
 )
 
-phone_clean = clean_phone(phone)
+phone = clean_phone(phone)
 
-# AUTO LOAD USER
-if phone_clean and is_valid_phone(phone_clean):
-    load_user(phone_clean)
+if phone and is_valid_phone(phone):
+    load_user(phone)
 
-current_points = st.session_state.points
+points = st.session_state.points
 
 
-# ---------------- FREE TEA SCREEN ----------------
-if current_points >= 5:
+# ---------------- FREE TEA MODE ----------------
+if points >= 5:
 
     st.success("🎉 FREE TEA unlocked!")
     st.markdown("👉 Show this screen to shop owner ☕")
@@ -159,53 +122,26 @@ if current_points >= 5:
     st.stop()
 
 
-# ---------------- PAYMENT ----------------
-st.markdown("### 💸 Pay & Earn Rewards")
-st.link_button("👉 Pay with UPI", UPI_LINK)
+# ---------------- NORMAL USER (1–4) ----------------
+if phone and is_valid_phone(phone):
 
-st.write("👇 After payment, confirm below")
+    st.markdown("### 💸 Get your reward")
 
-if st.button("✅ I Paid"):
+    st.link_button("👉 Pay with UPI", UPI_LINK)
 
-    if not phone_clean:
-        st.warning("📱 Enter your number first")
-    elif not is_valid_phone(phone_clean):
-        st.error("❌ Enter valid number")
-    elif not can_click():
-        st.error("⛔ Wait few seconds")
-    else:
-        st.session_state.paid = True
-        st.balloons()
+    if st.button("✅ I Paid"):
 
-        st.markdown(f"""
-        ## 🎉 Payment Successful!
+        new_points = update_points(phone)
 
-        **at {SHOP_NAME}**
+        st.session_state.points = new_points
 
-        ✅ You earned 1 point  
-        🔥 Complete 5 → get FREE TEA ☕
-        """)
+        st.success("🎉 Point added!")
 
-
-# ---------------- SAVE (NO SECOND INPUT) ----------------
-if st.session_state.paid:
-
-    if st.button("💾 Save Rewards"):
-
-        points, allowed, remaining_time = update_points(phone_clean)
-
-        if not allowed:
-            mins = int(remaining_time.total_seconds() // 60)
-            st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
-        else:
-            st.session_state.points = points
-            st.rerun()
+        st.rerun()
 
 
 # ---------------- SHOW REWARDS ----------------
-if st.session_state.phone:
-
-    points = st.session_state.points
+if phone:
 
     st.divider()
     st.subheader("🎁 Your Rewards")
@@ -213,17 +149,8 @@ if st.session_state.phone:
     st.progress(min(points / 5, 1.0))
     st.write(f"🔥 {points}/5 points collected")
 
-    if points == 4:
-        st.info("🔥 Just 1 more tea for FREE reward!")
-    elif points < 5:
+    if points < 5:
         st.markdown(f"🔥 {5 - points} more teas to get FREE TEA ☕")
-
-    # LAST VISIT
-    row = find_row(st.session_state.phone)
-    if row:
-        last_time = sheet.cell(row, 3).value
-        if last_time:
-            st.caption(f"🕒 Last visit: {last_time}")
 
 
 # ---------------- FOOTER ----------------
