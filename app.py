@@ -3,6 +3,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import time
+import pandas as pd
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -201,8 +202,8 @@ if st.session_state.submitted:
             st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
         else:
             st.success("🎉 FREE TEA unlocked!")
+            st.balloons()
 
-        # ✅ WAIT + RESET + END SCREEN
         time.sleep(10)
 
         st.session_state.phone = ""
@@ -241,7 +242,6 @@ if st.session_state.submitted:
                 st.session_state.success_msg = True
                 st.rerun()
 
-    # -------- REWARDS (ONLY ONCE) --------
     elif not st.session_state.success_msg:
 
         st.divider()
@@ -250,12 +250,87 @@ if st.session_state.submitted:
         st.progress(min(pts / 5, 1.0))
         st.write(f"🔥 {pts}/5 points collected")
 
-        remaining = max(0, 5 - pts)
-
-        if remaining > 0:
-            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-        else:
+        if pts >= 5:
             st.success("🎉 FREE TEA unlocked!")
+            st.balloons()
+
+
+# ---------------- ADMIN PANEL ----------------
+st.sidebar.title("🔐 Owner Panel")
+
+ADMIN_PASSWORD = "1234"
+admin_pass = st.sidebar.text_input("Enter Password", type="password")
+
+if admin_pass == ADMIN_PASSWORD:
+
+    st.sidebar.success("Logged in")
+
+    menu = st.sidebar.radio("Menu", [
+        "📊 Overview",
+        "👥 Customers",
+        "🎁 Rewards Control"
+    ])
+
+    data = sheet.get_all_records()
+
+    if menu == "📊 Overview":
+
+        st.subheader("📊 Analytics")
+
+        total_users = len(data)
+        total_points = sum([int(r["points"]) for r in data if r["points"]])
+
+        st.metric("Customers", total_users)
+        st.metric("Points Given", total_points)
+
+        st.divider()
+
+        sorted_data = sorted(data, key=lambda x: int(x["points"]), reverse=True)
+
+        st.write("🏆 Top Customers")
+        for u in sorted_data[:5]:
+            st.write(f"{u['phone']} — {u['points']} pts")
+
+    elif menu == "👥 Customers":
+
+        st.subheader("👥 All Customers")
+
+        for i, row in enumerate(data, start=2):
+            col1, col2, col3 = st.columns([2,1,1])
+
+            col1.write(row["phone"])
+            col2.write(f"{row['points']} pts")
+
+            if col3.button("➕", key=i):
+                sheet.update_cell(i, 2, int(row["points"]) + 1)
+                st.rerun()
+
+        df = pd.DataFrame(data)
+        st.download_button("📥 Download CSV", df.to_csv(index=False), "customers.csv")
+
+    elif menu == "🎁 Rewards Control":
+
+        phone_input = st.text_input("Phone (+91...)")
+
+        if st.button("Reset Points"):
+            row = find_row(phone_input)
+            if row:
+                sheet.update_cell(row, 2, 0)
+                st.success("Reset Done")
+            else:
+                st.error("User not found")
+
+        if st.button("Add 1 Point"):
+            row = find_row(phone_input)
+            if row:
+                pts = int(sheet.cell(row, 2).value)
+                sheet.update_cell(row, 2, pts + 1)
+                st.success("Added")
+            else:
+                st.error("User not found")
+
+else:
+    st.sidebar.info("Enter password to access dashboard")
 
 
 # ---------------- FOOTER ----------------
