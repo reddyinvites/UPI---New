@@ -188,18 +188,21 @@ if st.session_state.submitted:
 
         updated_pts = st.session_state.points
 
-        st.divider()
-        st.subheader("🎁 Your Rewards")
+        # -------- REWARDS (ONLY IF NOT SUCCESS) --------
+if not st.session_state.success_msg:
 
-        st.progress(min(updated_pts / 5, 1.0))
-        st.write(f"🔥 {updated_pts}/5 points collected")
+    st.divider()
+    st.subheader("🎁 Your Rewards")
 
-        remaining = max(0, 5 - updated_pts)
+    st.progress(min(pts / 5, 1.0))
+    st.write(f"🔥 {pts}/5 points collected")
 
-        if remaining > 0:
-            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-        else:
-            st.success("🎉 FREE TEA unlocked!")
+    remaining = max(0, 5 - pts)
+
+    if remaining > 0:
+        st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+    else:
+        st.success("🎉 FREE TEA unlocked!")
 
     else:
         if pts == 0:
