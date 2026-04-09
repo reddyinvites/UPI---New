@@ -30,14 +30,6 @@ TAGLINE = "Morning kick chai 🔥"
 UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 
 
-# ---------------- OWNER LOGIN ----------------
-OWNER_USERNAME = "admin"
-OWNER_PASSWORD = "1234"
-
-if "owner_logged" not in st.session_state:
-    st.session_state.owner_logged = False
-
-
 # ---------------- SESSION ----------------
 if "phone" not in st.session_state:
     st.session_state.phone = ""
@@ -56,6 +48,18 @@ if "submitted" not in st.session_state:
 
 if "end_screen" not in st.session_state:
     st.session_state.end_screen = False
+
+# ✅ NEW (only addition)
+if "pay_clicked" not in st.session_state:
+    st.session_state.pay_clicked = False
+
+
+# ---------------- OWNER LOGIN ----------------
+OWNER_USERNAME = "admin"
+OWNER_PASSWORD = "1234"
+
+if "owner_logged" not in st.session_state:
+    st.session_state.owner_logged = False
 
 
 # ---------------- OWNER SIDEBAR ----------------
@@ -85,7 +89,6 @@ with st.sidebar:
 
         st.markdown("---")
 
-        # ---------------- DASHBOARD ----------------
         data = sheet.get_all_records()
 
         total_users = len(data)
@@ -235,7 +238,6 @@ if st.session_state.submitted:
     phone = st.session_state.phone
     pts = st.session_state.points
 
-    # -------- SUCCESS FLOW --------
     if st.session_state.success_msg:
 
         st.success("🎉 Payment Successful! +1 point added")
@@ -266,14 +268,13 @@ if st.session_state.submitted:
 
         st.session_state.phone = ""
         st.session_state.points = 0
-        st.session_state.paid_clicked = False
         st.session_state.success_msg = False
         st.session_state.submitted = False
         st.session_state.end_screen = True
+        st.session_state.pay_clicked = False
 
         st.rerun()
 
-    # -------- NORMAL FLOW --------
     if pts == 0:
         st.success("👋 Welcome! Start earning rewards 🎉")
     else:
@@ -283,12 +284,15 @@ if st.session_state.submitted:
 
         st.markdown("### 💸 Get your reward")
 
-        st.link_button("👉 Pay with UPI", UPI_LINK)
+        # ✅ TRACK PAY CLICK
+        if st.link_button("👉 Pay with UPI", UPI_LINK):
+            st.session_state.pay_clicked = True
 
         st.caption("💡 Complete payment using any UPI app")
         st.caption("👇 After payment, click below")
 
-        if st.button("✅ I Paid"):
+        # ✅ DISABLE UNTIL PAY CLICKED
+        if st.button("✅ I Paid", disabled=not st.session_state.pay_clicked):
 
             new_pts, allowed, remaining_time = update_points(phone)
 
@@ -300,7 +304,6 @@ if st.session_state.submitted:
                 st.session_state.success_msg = True
                 st.rerun()
 
-    # -------- REWARDS --------
     if not st.session_state.success_msg:
 
         st.divider()
