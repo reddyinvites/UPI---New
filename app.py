@@ -49,7 +49,9 @@ if "submitted" not in st.session_state:
 if "end_screen" not in st.session_state:
     st.session_state.end_screen = False
 
-# ✅ NEW
+if "is_owner" not in st.session_state:
+    st.session_state.is_owner = False
+
 if "pay_time" not in st.session_state:
     st.session_state.pay_time = None
 
@@ -113,10 +115,73 @@ def update_points(phone):
         return 1, True, None
 
 
+# ---------------- DASHBOARD ----------------
+def get_dashboard_data():
+    data = sheet.get_all_records()
+
+    total_users = len(data)
+    total_points = 0
+    today_visits = 0
+    today = datetime.now().date()
+
+    for row in data:
+        pts = int(row.get("Points", 0))
+        total_points += pts
+
+        last_time = row.get("Last Visit", "")
+
+        if last_time:
+            try:
+                dt = datetime.strptime(last_time, "%Y-%m-%d %H:%M:%S")
+            except:
+                dt = datetime.strptime(last_time, "%Y-%m-%d %H:%M")
+
+            if dt.date() == today:
+                today_visits += 1
+
+    today_revenue = today_visits * 10
+
+    return total_users, total_points, today_visits, today_revenue
+
+
+# ---------------- OWNER LOGIN ----------------
+OWNER_PASSWORD = "admin123"
+
+with st.sidebar:
+    st.subheader("🔐 Owner Panel")
+    pwd = st.text_input("Enter Password", type="password")
+
+    if st.button("Login"):
+        if pwd == OWNER_PASSWORD:
+            st.session_state.is_owner = True
+            st.success("Logged in ✅")
+        else:
+            st.error("Wrong password ❌")
+
+
 # ---------------- HEADER ----------------
 st.markdown(f"## {SHOP_NAME}")
 st.write(TAGLINE)
 st.divider()
+
+
+# ---------------- OWNER DASHBOARD ----------------
+if st.session_state.is_owner:
+
+    st.markdown("## 📊 Dashboard")
+
+    users, points, visits, revenue = get_dashboard_data()
+
+    col1, col2 = st.columns(2)
+    col3, col4 = st.columns(2)
+
+    col1.metric("👥 Users", users)
+    col2.metric("🎯 Total Points", points)
+    col3.metric("🔥 Today Visits", visits)
+    col4.metric("💰 Today Revenue", f"₹{revenue}")
+
+    st.divider()
+    st.stop()
 
 
 # ---------------- END SCREEN ----------------
@@ -209,7 +274,6 @@ if st.session_state.submitted:
 
         st.session_state.phone = ""
         st.session_state.points = 0
-        st.session_state.paid_clicked = False
         st.session_state.success_msg = False
         st.session_state.submitted = False
         st.session_state.end_screen = True
@@ -231,18 +295,20 @@ if st.session_state.submitted:
         st.caption("💡 Complete payment using any UPI app")
         st.caption("👇 After payment, click below")
 
-        # ⏳ Start timer when page loads first time
-        if st.session_state.pay_time is None:
+        # 👉 Start timer only when user clicks
+        if st.button("🟢 I Opened Payment"):
             st.session_state.pay_time = datetime.now()
 
         can_click = False
-        diff = datetime.now() - st.session_state.pay_time
 
-        if diff.seconds >= 30:
-            can_click = True
-        else:
-            remaining = 30 - diff.seconds
-            st.warning(f"⏳ Please wait {remaining} seconds")
+        if st.session_state.pay_time:
+            diff = datetime.now() - st.session_state.pay_time
+
+            if diff.seconds >= 30:
+                can_click = True
+            else:
+                remaining = 30 - diff.seconds
+                st.warning(f"⏳ Please wait {remaining} seconds")
 
         if not can_click:
             st.button("🔒 I Paid", disabled=True)
