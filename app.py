@@ -228,7 +228,7 @@ if st.session_state.submitted:
 
         st.caption("💡 Complete payment using any UPI app")
 
-        # ⏳ NO INSTALL TIMER FIX
+        # ✅ FIXED TIMER (NO FREEZE)
         if st.session_state.pay_timer_start is None:
             st.session_state.pay_timer_start = datetime.now()
 
@@ -236,12 +236,13 @@ if st.session_state.submitted:
 
         if elapsed < 3:
             st.warning("👉 Open UPI app & come back to confirm")
-            st.button("⏳ Waiting...", disabled=True)
-            st.stop()
+            enable_paid = False
+        else:
+            enable_paid = True
 
         st.caption("👇 After payment, click below")
 
-        if st.button("✅ I Paid"):
+        if st.button("✅ I Paid", disabled=not enable_paid):
 
             new_pts, allowed, remaining_time = update_points(phone)
 
