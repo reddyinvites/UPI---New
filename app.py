@@ -143,10 +143,10 @@ if phone and is_valid_phone(phone):
             new_points = update_points(phone)
             st.session_state.points = new_points
 
-            # 🎉 SUCCESS TEXT
-            st.markdown(f"""
-            ### 🎉 Payment Successful!
+            # 🎉 SUCCESS MESSAGE
+            st.success("🎉 Payment Successful! +1 point added")
 
+            st.markdown(f"""
             **at {SHOP_NAME}**
 
             ✅ You earned 1 point  
@@ -160,34 +160,23 @@ if phone and is_valid_phone(phone):
             </audio>
             """, unsafe_allow_html=True)
 
-            # ✨ +1 ANIMATION
-            st.markdown("""
-            <div style="font-size:40px; text-align:center; animation: pop 0.6s ease;">
-                ➕1
-            </div>
-
-            <style>
-            @keyframes pop {
-                0% {transform: scale(0.5); opacity:0;}
-                100% {transform: scale(1); opacity:1;}
-            }
-            </style>
-            """, unsafe_allow_html=True)
-
-            # 🎊 CONFETTI EFFECT (NEW)
+            # 🎊 CONFETTI
             st.markdown("""
             <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
             <script>
             confetti({
-                particleCount: 150,
-                spread: 100,
+                particleCount: 120,
+                spread: 90,
                 origin: { y: 0.6 }
             });
             </script>
             """, unsafe_allow_html=True)
 
-            time.sleep(1)
-            st.rerun()
+            # ⏳ WAIT (no instant rerun)
+            time.sleep(3)
+
+            # 🔄 RESET BUTTON (no rerun)
+            st.session_state.paid_clicked = False
 
 
 # ---------------- REWARDS DISPLAY ----------------
