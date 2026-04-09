@@ -153,14 +153,14 @@ if not st.session_state.submitted:
 
 
 # =========================================================
-# 🟢 MAIN FLOW (FIXED ORDER)
+# 🟢 MAIN FLOW (NO DUPLICATES)
 # =========================================================
 if st.session_state.submitted:
 
     phone = st.session_state.phone
     pts = st.session_state.points
 
-    # 🔥 STEP 1: HANDLE SUCCESS FIRST (CRITICAL FIX)
+    # -------- SUCCESS FLOW --------
     if st.session_state.success_msg:
 
         st.success("🎉 Payment Successful! +1 point added")
@@ -172,54 +172,62 @@ if st.session_state.submitted:
 🔥 Complete 5 → get FREE TEA ☕
 """)
 
-        if st.session_state.points >= 5:
+        updated_pts = st.session_state.points
+
+        st.divider()
+        st.subheader("🎁 Your Rewards")
+
+        st.progress(min(updated_pts / 5, 1.0))
+        st.write(f"🔥 {updated_pts}/5 points collected")
+
+        remaining = max(0, 5 - updated_pts)
+
+        if remaining > 0:
+            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        else:
             st.success("🎉 FREE TEA unlocked!")
-            st.markdown("👉 Show this screen to shop owner ☕")
 
-        st.stop()   # 🔥 STOPS OLD UI
-
-    # 🔥 STEP 2: NORMAL FLOW
-
-    if pts == 0:
-        st.success("👋 Welcome! Start earning rewards 🎉")
     else:
-        st.success(f"👋 Welcome back! You have {pts} points")
+        # -------- NORMAL FLOW --------
+        if pts == 0:
+            st.success("👋 Welcome! Start earning rewards 🎉")
+        else:
+            st.success(f"👋 Welcome back! You have {pts} points")
 
-    # ---------------- PAYMENT ----------------
-    if pts < 5:
+        if pts < 5:
 
-        st.markdown("### 💸 Get your reward")
+            st.markdown("### 💸 Get your reward")
 
-        st.link_button("👉 Pay with UPI", UPI_LINK)
+            st.link_button("👉 Pay with UPI", UPI_LINK)
 
-        st.caption("💡 Complete payment using any UPI app")
-        st.caption("👇 After payment, click below")
+            st.caption("💡 Complete payment using any UPI app")
+            st.caption("👇 After payment, click below")
 
-        if st.button("✅ I Paid"):
-            new_pts = update_points(phone)
+            if st.button("✅ I Paid"):
+                new_pts = update_points(phone)
 
-            st.session_state.points = new_pts
-            st.session_state.success_msg = True
+                st.session_state.points = new_pts
+                st.session_state.success_msg = True
 
-            st.rerun()
+                st.rerun()
 
-    # ---------------- REWARDS ----------------
-    st.divider()
-    st.subheader("🎁 Your Rewards")
+        # -------- REWARDS --------
+        st.divider()
+        st.subheader("🎁 Your Rewards")
 
-    st.progress(min(pts / 5, 1.0))
-    st.write(f"🔥 {pts}/5 points collected")
+        st.progress(min(pts / 5, 1.0))
+        st.write(f"🔥 {pts}/5 points collected")
 
-    remaining = max(0, 5 - pts)
+        remaining = max(0, 5 - pts)
 
-    if remaining > 0:
-        st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-    else:
-        st.success("🎉 FREE TEA unlocked!")
+        if remaining > 0:
+            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        else:
+            st.success("🎉 FREE TEA unlocked!")
 
 
 # =========================================================
-# 🔁 AUTO RESET → END SCREEN
+# 🔁 AUTO RESET AFTER 10 SEC
 # =========================================================
 if st.session_state.success_msg:
 
@@ -227,6 +235,7 @@ if st.session_state.success_msg:
 
     st.session_state.phone = ""
     st.session_state.points = 0
+    st.session_state.paid_clicked = False
     st.session_state.success_msg = False
     st.session_state.submitted = False
     st.session_state.end_screen = True
