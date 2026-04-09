@@ -1,7 +1,7 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime, timedelta
+from datetime import datetime
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -36,6 +36,9 @@ if "points" not in st.session_state:
 if "phone" not in st.session_state:
     st.session_state.phone = ""
 
+if "paid_clicked" not in st.session_state:
+    st.session_state.paid_clicked = False
+
 
 # ---------------- HELPERS ----------------
 def clean_phone(p):
@@ -69,10 +72,9 @@ def update_points(phone):
 
     if row:
         current = int(sheet.cell(row, 2).value)
-
         new_points = current + 1
 
-        # RESET AFTER FREE TEA
+        # reset after free tea
         if new_points > 5:
             new_points = 1
 
@@ -92,7 +94,7 @@ st.write(TAGLINE)
 
 st.divider()
 
-# ---------------- NUMBER INPUT ----------------
+# ---------------- PHONE INPUT ----------------
 phone = st.text_input(
     "📱 Enter your number to check rewards",
     value=st.session_state.phone,
@@ -122,25 +124,63 @@ if points >= 5:
     st.stop()
 
 
-# ---------------- NORMAL USER (1–4) ----------------
+# ---------------- NORMAL USER ----------------
 if phone and is_valid_phone(phone):
 
     st.markdown("### 💸 Get your reward")
 
     st.link_button("👉 Pay with UPI", UPI_LINK)
 
-    if st.button("✅ I Paid"):
+    st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
+    st.caption("👇 After payment, click below to collect your reward")
 
-        new_points = update_points(phone)
+    # AUTO HIDE BUTTON
+    if not st.session_state.paid_clicked:
 
-        st.session_state.points = new_points
+        if st.button("✅ I Paid"):
 
-        st.success("🎉 Point added!")
+            st.session_state.paid_clicked = True
 
-        st.rerun()
+            new_points = update_points(phone)
+            st.session_state.points = new_points
+
+            # SUCCESS UI
+            st.markdown(f"""
+            ### 🎉 Payment Successful!
+
+            **at {SHOP_NAME}**
+
+            ✅ You earned 1 point  
+            🔥 Complete 5 → get FREE TEA ☕
+            """)
+
+            # 🔊 SOUND
+            st.markdown("""
+            <audio autoplay>
+              <source src="https://www.soundjay.com/buttons/sounds/button-3.mp3" type="audio/mpeg">
+            </audio>
+            """, unsafe_allow_html=True)
+
+            # ✨ +1 ANIMATION
+            st.markdown("""
+            <div style="font-size:40px; text-align:center; animation: pop 0.6s ease;">
+                ➕1
+            </div>
+
+            <style>
+            @keyframes pop {
+                0% {transform: scale(0.5); opacity:0;}
+                100% {transform: scale(1); opacity:1;}
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
+            st.balloons()
+
+            st.rerun()
 
 
-# ---------------- SHOW REWARDS ----------------
+# ---------------- REWARDS DISPLAY ----------------
 if phone:
 
     st.divider()
