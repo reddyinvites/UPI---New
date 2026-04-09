@@ -242,7 +242,7 @@ if st.session_state.submitted:
                 st.rerun()
 
     # -------- REWARDS (ONLY ONCE) --------
-    if not st.session_state.success_msg:
+    elif not st.session_state.success_msg:
 
         st.divider()
         st.subheader("🎁 Your Rewards")
