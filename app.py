@@ -37,6 +37,9 @@ if "phone" not in st.session_state:
 if "points" not in st.session_state:
     st.session_state.points = 0
 
+if "paid_clicked" not in st.session_state:
+    st.session_state.paid_clicked = False
+
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = False
 
@@ -71,6 +74,7 @@ def get_user_data(phone):
     return 0
 
 
+# ---------------- COOLDOWN ----------------
 def update_points(phone):
     row = find_row(phone)
     now = datetime.now()
@@ -113,6 +117,7 @@ st.divider()
 
 # ---------------- END SCREEN ----------------
 if st.session_state.end_screen:
+
     st.markdown(f"""
 ### 🎯 See you again!
 
@@ -120,20 +125,36 @@ if st.session_state.end_screen:
 
 💸 Every tea = reward  
 🎁 Every 5 = FREE tea  
+
+👉 Come back soon & scan again  
+👉 More visits = more free chai ☕
 """)
+
+    st.caption("Powered by Your Startup 🚀")
     st.stop()
 
 
-# ---------------- WELCOME ----------------
+# ---------------- WELCOME SCREEN ----------------
 if not st.session_state.submitted:
 
     st.markdown("""
 ### ☕ Welcome to RAVI TEA
-👇 Enter number to start
+
+🔥 Morning kick chai that boosts your day  
+
+💸 Pay easily with UPI  
+🎁 Earn rewards on every tea  
+☕ Complete 5 → Get 1 FREE  
+
+👇 Just enter your number & start earning
 """)
 
+    st.info("🚀 Powered by Your Startup — Smart Rewards System")
+
+    st.divider()
+
     with st.form("form"):
-        phone = st.text_input("📱 Enter your number")
+        phone = st.text_input("📱 Enter your number", placeholder="+91XXXXXXXXXX")
         submit = st.form_submit_button("Check")
 
     if submit:
@@ -145,70 +166,98 @@ if not st.session_state.submitted:
             st.session_state.submitted = True
             st.rerun()
         else:
-            st.error("❌ Invalid number")
-
-    st.stop()
+            st.error("❌ Enter valid number (+91XXXXXXXXXX)")
 
 
-# =================================================
-# 🔥 MAIN UI IN SINGLE CONTAINER (ULTIMATE FIX)
-# =================================================
-main = st.container()
-
-with main:
+# ---------------- MAIN FLOW ----------------
+if st.session_state.submitted:
 
     phone = st.session_state.phone
     pts = st.session_state.points
 
-    # -------- SUCCESS --------
+    # -------- SUCCESS FLOW --------
     if st.session_state.success_msg:
 
         st.success("🎉 Payment Successful! +1 point added")
 
         st.markdown(f"""
 **at {SHOP_NAME}**
+
 ✅ You earned 1 point  
 🔥 Complete 5 → get FREE TEA ☕
 """)
 
+        updated_pts = st.session_state.points
+
         st.divider()
         st.subheader("🎁 Your Rewards")
 
-        st.progress(min(pts / 5, 1.0))
-        st.write(f"{pts}/5 points")
+        st.progress(min(updated_pts / 5, 1.0))
+        st.write(f"🔥 {updated_pts}/5 points collected")
+
+        remaining = max(0, 5 - updated_pts)
+
+        if remaining > 0:
+            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        else:
+            st.success("🎉 FREE TEA unlocked!")
 
         time.sleep(10)
 
+        st.session_state.phone = ""
+        st.session_state.points = 0
+        st.session_state.paid_clicked = False
         st.session_state.success_msg = False
         st.session_state.submitted = False
         st.session_state.end_screen = True
 
         st.rerun()
-        return  # 🔥 HARD STOP
+        return   # 🔥 FIX (stops duplicate render completely)
 
-
-    # -------- NORMAL --------
+    # -------- NORMAL FLOW --------
     if pts == 0:
-        st.success("👋 Welcome!")
+        st.success("👋 Welcome! Start earning rewards 🎉")
     else:
-        st.success(f"👋 You have {pts} points")
+        st.success(f"👋 Welcome back! You have {pts} points")
 
     if pts < 5:
 
-        st.link_button("👉 Pay", UPI_LINK)
+        st.markdown("### 💸 Get your reward")
+
+        st.link_button("👉 Pay with UPI", UPI_LINK)
+
+        st.caption("💡 Complete payment using any UPI app")
+        st.caption("👇 After payment, click below")
 
         if st.button("✅ I Paid"):
-            new_pts, allowed, _ = update_points(phone)
 
-            if allowed:
+            new_pts, allowed, remaining_time = update_points(phone)
+
+            if not allowed:
+                mins = int(remaining_time.total_seconds() // 60)
+                st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
+            else:
                 st.session_state.points = new_pts
                 st.session_state.success_msg = True
                 st.rerun()
-                return  # 🔥 HARD STOP
 
-    # -------- REWARDS --------
-    st.divider()
-    st.subheader("🎁 Your Rewards")
+    # -------- REWARDS (ONLY ONCE) --------
+    elif not st.session_state.success_msg:
 
-    st.progress(min(pts / 5, 1.0))
-    st.write(f"{pts}/5 points")
+        st.divider()
+        st.subheader("🎁 Your Rewards")
+
+        st.progress(min(pts / 5, 1.0))
+        st.write(f"🔥 {pts}/5 points collected")
+
+        remaining = max(0, 5 - pts)
+
+        if remaining > 0:
+            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        else:
+            st.success("🎉 FREE TEA unlocked!")
+
+
+# ---------------- FOOTER ----------------
+st.markdown("<br>", unsafe_allow_html=True)
+st.caption("Powered by Your Startup 🚀")
