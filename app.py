@@ -30,6 +30,14 @@ TAGLINE = "Morning kick chai 🔥"
 UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 
 
+# ---------------- OWNER LOGIN ----------------
+OWNER_USERNAME = "admin"
+OWNER_PASSWORD = "1234"
+
+if "owner_logged" not in st.session_state:
+    st.session_state.owner_logged = False
+
+
 # ---------------- SESSION ----------------
 if "phone" not in st.session_state:
     st.session_state.phone = ""
@@ -48,6 +56,58 @@ if "submitted" not in st.session_state:
 
 if "end_screen" not in st.session_state:
     st.session_state.end_screen = False
+
+
+# ---------------- OWNER SIDEBAR ----------------
+with st.sidebar:
+
+    st.title("🔐 Owner Panel")
+
+    if not st.session_state.owner_logged:
+
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+
+        if st.button("Login"):
+            if username == OWNER_USERNAME and password == OWNER_PASSWORD:
+                st.session_state.owner_logged = True
+                st.success("Login successful")
+                st.rerun()
+            else:
+                st.error("Wrong credentials")
+
+    else:
+        st.success("Logged in ✅")
+
+        if st.button("Logout"):
+            st.session_state.owner_logged = False
+            st.rerun()
+
+        st.markdown("---")
+
+        # ---------------- DASHBOARD ----------------
+        data = sheet.get_all_records()
+
+        total_users = len(data)
+        total_points = sum([int(row["Points"]) for row in data if row["Points"]])
+
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        today_transactions = [
+            row for row in data
+            if row["Last Visit"] and today in row["Last Visit"]
+        ]
+
+        today_count = len(today_transactions)
+
+        PRICE_PER_TEA = 10
+        today_revenue = today_count * PRICE_PER_TEA
+
+        st.subheader("📊 Dashboard")
+        st.write(f"👥 Users: {total_users}")
+        st.write(f"🎯 Total Points: {total_points}")
+        st.write(f"🔥 Today Visits: {today_count}")
+        st.write(f"💰 Today Revenue: ₹{today_revenue}")
 
 
 # ---------------- HELPERS ----------------
@@ -134,7 +194,7 @@ if st.session_state.end_screen:
     st.stop()
 
 
-# ---------------- WELCOME SCREEN ----------------
+# ---------------- WELCOME ----------------
 if not st.session_state.submitted:
 
     st.markdown("""
@@ -202,7 +262,6 @@ if st.session_state.submitted:
         else:
             st.success("🎉 FREE TEA unlocked!")
 
-        # ✅ WAIT + RESET + END SCREEN
         time.sleep(10)
 
         st.session_state.phone = ""
@@ -241,7 +300,7 @@ if st.session_state.submitted:
                 st.session_state.success_msg = True
                 st.rerun()
 
-    # -------- REWARDS (ONLY ONCE) --------
+    # -------- REWARDS --------
     if not st.session_state.success_msg:
 
         st.divider()
