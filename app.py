@@ -202,49 +202,49 @@ if st.session_state.submitted:
         else:
             st.success("🎉 FREE TEA unlocked!")
 
+        # ✅ CRITICAL FIX (STOP DUPLICATE)
+        st.stop()
+
+    # -------- NORMAL FLOW --------
+    if pts == 0:
+        st.success("👋 Welcome! Start earning rewards 🎉")
     else:
-        # -------- NORMAL FLOW --------
-        if pts == 0:
-            st.success("👋 Welcome! Start earning rewards 🎉")
-        else:
-            st.success(f"👋 Welcome back! You have {pts} points")
+        st.success(f"👋 Welcome back! You have {pts} points")
 
-        if pts < 5:
+    if pts < 5:
 
-            st.markdown("### 💸 Get your reward")
+        st.markdown("### 💸 Get your reward")
 
-            st.link_button("👉 Pay with UPI", UPI_LINK)
+        st.link_button("👉 Pay with UPI", UPI_LINK)
 
-            st.caption("💡 Complete payment using any UPI app")
-            st.caption("👇 After payment, click below")
+        st.caption("💡 Complete payment using any UPI app")
+        st.caption("👇 After payment, click below")
 
-            if st.button("✅ I Paid"):
+        if st.button("✅ I Paid"):
 
-                new_pts, allowed, remaining_time = update_points(phone)
+            new_pts, allowed, remaining_time = update_points(phone)
 
-                if not allowed:
-                    mins = int(remaining_time.total_seconds() // 60)
-                    st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
-                else:
-                    st.session_state.points = new_pts
-                    st.session_state.success_msg = True
-                    st.rerun()
-
-        # ✅ FIXED: SHOW ONLY ONCE
-        if not st.session_state.success_msg:
-
-            st.divider()
-            st.subheader("🎁 Your Rewards")
-
-            st.progress(min(pts / 5, 1.0))
-            st.write(f"🔥 {pts}/5 points collected")
-
-            remaining = max(0, 5 - pts)
-
-            if remaining > 0:
-                st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+            if not allowed:
+                mins = int(remaining_time.total_seconds() // 60)
+                st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
             else:
-                st.success("🎉 FREE TEA unlocked!")
+                st.session_state.points = new_pts
+                st.session_state.success_msg = True
+                st.rerun()
+
+    # -------- REWARDS --------
+    st.divider()
+    st.subheader("🎁 Your Rewards")
+
+    st.progress(min(pts / 5, 1.0))
+    st.write(f"🔥 {pts}/5 points collected")
+
+    remaining = max(0, 5 - pts)
+
+    if remaining > 0:
+        st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+    else:
+        st.success("🎉 FREE TEA unlocked!")
 
 
 # ---------------- AUTO RESET ----------------
