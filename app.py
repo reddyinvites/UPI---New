@@ -202,6 +202,7 @@ if st.session_state.submitted:
         else:
             st.success("🎉 FREE TEA unlocked!")
 
+        # ✅ WAIT + RESET + END SCREEN
         time.sleep(10)
 
         st.session_state.phone = ""
@@ -212,7 +213,6 @@ if st.session_state.submitted:
         st.session_state.end_screen = True
 
         st.rerun()
-        return   # 🔥 FIX (stops duplicate render completely)
 
     # -------- NORMAL FLOW --------
     if pts == 0:
@@ -242,7 +242,7 @@ if st.session_state.submitted:
                 st.rerun()
 
     # -------- REWARDS (ONLY ONCE) --------
-    elif not st.session_state.success_msg:
+    if not st.session_state.success_msg:
 
         st.divider()
         st.subheader("🎁 Your Rewards")
