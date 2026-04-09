@@ -1,7 +1,7 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
@@ -31,52 +31,61 @@ UPI_LINK = "upi://pay?pa=yourupi@upi&pn=RaviTea&cu=INR"
 
 
 # ---------------- SESSION ----------------
-if "points" not in st.session_state:
-    st.session_state.points = 0
-
 if "phone" not in st.session_state:
     st.session_state.phone = ""
+
+if "points" not in st.session_state:
+    st.session_state.points = 0
 
 if "paid_clicked" not in st.session_state:
     st.session_state.paid_clicked = False
 
 
-# ---------------- HELPERS ----------------
+# ---------------- CLEAN PHONE ----------------
 def clean_phone(p):
     return str(p).strip().replace(" ", "")
 
-def is_valid_phone(phone):
-    return phone.startswith("+91") and len(phone) == 13
 
+# ---------------- VALIDATION ----------------
+def is_valid_phone(phone):
+    phone = clean_phone(phone)
+    return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
+
+
+# ---------------- FIND ROW ----------------
 def find_row(phone):
     phones = sheet.col_values(1)
+    phone = clean_phone(phone)
+
     for i, val in enumerate(phones):
         if clean_phone(val) == phone:
             return i + 1
     return None
 
 
-def load_user(phone):
+# ---------------- GET POINTS ----------------
+def get_points(phone):
     row = find_row(phone)
     if row:
-        points = int(sheet.cell(row, 2).value)
-        st.session_state.points = points
-        st.session_state.phone = phone
-    else:
-        st.session_state.points = 0
-        st.session_state.phone = phone
+        return int(sheet.cell(row, 2).value)
+    return 0
 
 
+# ---------------- UPDATE POINTS ----------------
 def update_points(phone):
     row = find_row(phone)
     now = datetime.now()
 
     if row:
-        current = int(sheet.cell(row, 2).value)
-        new_points = current + 1
+        current_points = int(sheet.cell(row, 2).value)
+        last_time_str = sheet.cell(row, 3).value
 
-        if new_points > 5:
-            new_points = 1
+        if last_time_str:
+            last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S")
+            if now - last_time < timedelta(hours=2):
+                return current_points
+
+        new_points = min(current_points + 1, 5)
 
         sheet.update_cell(row, 2, new_points)
         sheet.update_cell(row, 3, now.strftime("%Y-%m-%d %H:%M:%S"))
@@ -84,7 +93,11 @@ def update_points(phone):
         return new_points
 
     else:
-        sheet.append_row([phone, 1, now.strftime("%Y-%m-%d %H:%M:%S")])
+        sheet.append_row([
+            phone,
+            1,
+            now.strftime("%Y-%m-%d %H:%M:%S")
+        ])
         return 1
 
 
@@ -103,43 +116,38 @@ phone = st.text_input(
 
 phone = clean_phone(phone)
 
-if phone and is_valid_phone(phone):
-    load_user(phone)
+if is_valid_phone(phone):
+    st.session_state.phone = phone
+    st.session_state.points = get_points(phone)
 
-points = st.session_state.points
 
-
-# ---------------- FREE TEA MODE ----------------
-if points >= 5:
-
+# ---------------- FREE TEA STATE ----------------
+if st.session_state.points >= 5:
     st.success("🎉 FREE TEA unlocked!")
     st.markdown("👉 Show this screen to shop owner ☕")
 
-    st.divider()
-    st.subheader("🎁 Your Rewards")
-
-    st.progress(1.0)
-    st.write("🔥 5/5 points collected")
-
-    st.stop()
-
-
-# ---------------- NORMAL USER ----------------
-if phone and is_valid_phone(phone):
-
+else:
+    # ---------------- PAYMENT ----------------
     st.markdown("### 💸 Get your reward")
-
     st.link_button("👉 Pay with UPI", UPI_LINK)
 
-    st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
-    st.caption("👇 After payment, click below to collect your reward")
+    st.markdown("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
+    st.markdown("👇 After payment, click below to collect your reward")
 
-    if not st.session_state.paid_clicked:
+    # ---------------- PAID BUTTON ----------------
+    paid_btn = st.button(
+        "✅ I Paid",
+        disabled=st.session_state.paid_clicked
+    )
 
-        if st.button("✅ I Paid"):
+    if paid_btn and not st.session_state.paid_clicked:
 
+        if not is_valid_phone(phone):
+            st.error("❌ Enter valid number first")
+        else:
             st.session_state.paid_clicked = True
 
+            # 🔥 Update points
             new_points = update_points(phone)
             st.session_state.points = new_points
 
@@ -153,34 +161,17 @@ if phone and is_valid_phone(phone):
             🔥 Complete 5 → get FREE TEA ☕
             """)
 
-            # 🔊 SOUND
-            st.markdown("""
-            <audio autoplay>
-              <source src="https://www.soundjay.com/buttons/sounds/button-3.mp3" type="audio/mpeg">
-            </audio>
-            """, unsafe_allow_html=True)
+            # ⏳ small delay (UX feel)
+            time.sleep(2)
 
-            # 🎊 CONFETTI
-            st.markdown("""
-            <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-            <script>
-            confetti({
-                particleCount: 120,
-                spread: 90,
-                origin: { y: 0.6 }
-            });
-            </script>
-            """, unsafe_allow_html=True)
-
-            # ⏳ WAIT (no instant rerun)
-            time.sleep(3)
-
-            # 🔄 RESET BUTTON (no rerun)
+            # 🔓 allow next click later
             st.session_state.paid_clicked = False
 
 
-# ---------------- REWARDS DISPLAY ----------------
-if phone:
+# ---------------- SHOW REWARDS ----------------
+if st.session_state.phone:
+
+    points = st.session_state.points
 
     st.divider()
     st.subheader("🎁 Your Rewards")
@@ -188,8 +179,14 @@ if phone:
     st.progress(min(points / 5, 1.0))
     st.write(f"🔥 {points}/5 points collected")
 
-    if points < 5:
-        st.markdown(f"🔥 {5 - points} more teas to get FREE TEA ☕")
+    remaining = max(0, 5 - points)
+
+    if remaining > 0:
+        st.markdown(
+            f"🔥 {remaining} more tea{'s' if remaining > 1 else ''} to get FREE TEA ☕"
+        )
+    else:
+        st.success("🎉 FREE TEA unlocked!")
 
 
 # ---------------- FOOTER ----------------
