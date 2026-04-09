@@ -47,21 +47,17 @@ if "points" not in st.session_state:
 def clean_phone(p):
     return str(p).strip().replace(" ", "")
 
-
 def is_valid_phone(phone):
     phone = clean_phone(phone)
     return phone.startswith("+91") and len(phone) == 13 and phone[3:].isdigit()
 
-
 def find_row(phone):
     phone = clean_phone(phone)
     phones = sheet.col_values(1)
-
     for i, val in enumerate(phones):
         if clean_phone(val) == phone:
             return i + 1
     return None
-
 
 def load_user(phone):
     row = find_row(phone)
@@ -91,7 +87,7 @@ def update_points(phone):
 
         new_points = current_points + 1
 
-        # 🔥 RESET AFTER FREE TEA
+        # 🔁 RESET AFTER FREE TEA
         if new_points > 5:
             new_points = 1
 
@@ -132,7 +128,7 @@ st.write(TAGLINE)
 
 st.divider()
 
-# ---------------- PHONE INPUT ----------------
+# ---------------- SINGLE PHONE INPUT ----------------
 phone = st.text_input(
     "📱 Enter your number",
     value=st.session_state.phone,
@@ -148,7 +144,7 @@ if phone_clean and is_valid_phone(phone_clean):
 current_points = st.session_state.points
 
 
-# ---------------- 🔒 FREE TEA SCREEN ----------------
+# ---------------- FREE TEA SCREEN ----------------
 if current_points >= 5:
 
     st.success("🎉 FREE TEA unlocked!")
@@ -163,7 +159,7 @@ if current_points >= 5:
     st.stop()
 
 
-# ---------------- NORMAL FLOW ----------------
+# ---------------- PAYMENT ----------------
 st.markdown("### 💸 Pay & Earn Rewards")
 st.link_button("👉 Pay with UPI", UPI_LINK)
 
@@ -171,7 +167,11 @@ st.write("👇 After payment, confirm below")
 
 if st.button("✅ I Paid"):
 
-    if not can_click():
+    if not phone_clean:
+        st.warning("📱 Enter your number first")
+    elif not is_valid_phone(phone_clean):
+        st.error("❌ Enter valid number")
+    elif not can_click():
         st.error("⛔ Wait few seconds")
     else:
         st.session_state.paid = True
@@ -187,32 +187,19 @@ if st.button("✅ I Paid"):
         """)
 
 
-# ---------------- SAVE ----------------
+# ---------------- SAVE (NO SECOND INPUT) ----------------
 if st.session_state.paid:
-
-    phone = st.text_input(
-        "💾 Save your rewards (WhatsApp number)",
-        value=st.session_state.phone,
-        placeholder="+91XXXXXXXXXX"
-    )
-
-    phone_clean = clean_phone(phone)
 
     if st.button("💾 Save Rewards"):
 
-        if not is_valid_phone(phone_clean):
-            st.error("❌ Enter valid number")
+        points, allowed, remaining_time = update_points(phone_clean)
 
+        if not allowed:
+            mins = int(remaining_time.total_seconds() // 60)
+            st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
         else:
-            points, allowed, remaining_time = update_points(phone_clean)
-
-            if not allowed:
-                mins = int(remaining_time.total_seconds() // 60)
-                st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
-            else:
-                st.session_state.phone = phone_clean
-                st.session_state.points = points
-                st.rerun()
+            st.session_state.points = points
+            st.rerun()
 
 
 # ---------------- SHOW REWARDS ----------------
@@ -226,12 +213,10 @@ if st.session_state.phone:
     st.progress(min(points / 5, 1.0))
     st.write(f"🔥 {points}/5 points collected")
 
-    remaining = 5 - points
-
     if points == 4:
         st.info("🔥 Just 1 more tea for FREE reward!")
     elif points < 5:
-        st.markdown(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        st.markdown(f"🔥 {5 - points} more teas to get FREE TEA ☕")
 
     # LAST VISIT
     row = find_row(st.session_state.phone)
