@@ -2,7 +2,7 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
-import time  # ✅ ADDED
+import time
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -104,12 +104,31 @@ st.write(TAGLINE)
 
 st.divider()
 
+
+# ---------------- BRAND SCREEN (ONLY ADDITION) ----------------
+if st.session_state.phone == "":
+
+    st.markdown("""
+    ### ☕ Welcome to RAVI TEA
+
+    🔥 *Morning kick chai that boosts your day*
+
+    💸 Pay easily with UPI  
+    🎁 Earn rewards on every tea  
+    ☕ Complete 5 → Get 1 FREE  
+
+    👇 Just enter your number & start earning
+    """)
+
+    st.info("🚀 Powered by Your Startup — Smart Rewards System")
+
+
 # ---------------- PHONE INPUT ----------------
 phone = st.text_input(
     "📱 Enter your number to check rewards",
     value=st.session_state.phone,
     placeholder="+91XXXXXXXXXX",
-    disabled=st.session_state.paid_clicked  # already you added
+    disabled=st.session_state.paid_clicked
 )
 
 phone_clean = clean_phone(phone)
@@ -133,7 +152,7 @@ if is_valid_phone(phone_clean):
             st.link_button(
                 "👉 Pay with UPI",
                 UPI_LINK,
-                disabled=st.session_state.paid_clicked  # disabled after click
+                disabled=st.session_state.paid_clicked
             )
 
             st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
@@ -187,10 +206,10 @@ if st.session_state.phone:
         st.success("🎉 FREE TEA unlocked!")
 
 
-# ---------------- AUTO RESET (ONLY ADDITION) ----------------
+# ---------------- AUTO RESET ----------------
 if st.session_state.success_msg:
 
-    time.sleep(6)  # show success for 6 sec
+    time.sleep(6)
 
     st.session_state.phone = ""
     st.session_state.points = 0
