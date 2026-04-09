@@ -37,9 +37,6 @@ if "phone" not in st.session_state:
 if "points" not in st.session_state:
     st.session_state.points = 0
 
-if "paid_clicked" not in st.session_state:
-    st.session_state.paid_clicked = False
-
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = False
 
@@ -49,68 +46,9 @@ if "submitted" not in st.session_state:
 if "end_screen" not in st.session_state:
     st.session_state.end_screen = False
 
-# ✅ NEW (only addition)
+# ✅ NEW (pay control)
 if "pay_clicked" not in st.session_state:
     st.session_state.pay_clicked = False
-
-
-# ---------------- OWNER LOGIN ----------------
-OWNER_USERNAME = "admin"
-OWNER_PASSWORD = "1234"
-
-if "owner_logged" not in st.session_state:
-    st.session_state.owner_logged = False
-
-
-# ---------------- OWNER SIDEBAR ----------------
-with st.sidebar:
-
-    st.title("🔐 Owner Panel")
-
-    if not st.session_state.owner_logged:
-
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-
-        if st.button("Login"):
-            if username == OWNER_USERNAME and password == OWNER_PASSWORD:
-                st.session_state.owner_logged = True
-                st.success("Login successful")
-                st.rerun()
-            else:
-                st.error("Wrong credentials")
-
-    else:
-        st.success("Logged in ✅")
-
-        if st.button("Logout"):
-            st.session_state.owner_logged = False
-            st.rerun()
-
-        st.markdown("---")
-
-        data = sheet.get_all_records()
-
-        total_users = len(data)
-        total_points = sum([int(row["Points"]) for row in data if row["Points"]])
-
-        today = datetime.now().strftime("%Y-%m-%d")
-
-        today_transactions = [
-            row for row in data
-            if row["Last Visit"] and today in row["Last Visit"]
-        ]
-
-        today_count = len(today_transactions)
-
-        PRICE_PER_TEA = 10
-        today_revenue = today_count * PRICE_PER_TEA
-
-        st.subheader("📊 Dashboard")
-        st.write(f"👥 Users: {total_users}")
-        st.write(f"🎯 Total Points: {total_points}")
-        st.write(f"🔥 Today Visits: {today_count}")
-        st.write(f"💰 Today Revenue: ₹{today_revenue}")
 
 
 # ---------------- HELPERS ----------------
@@ -238,6 +176,7 @@ if st.session_state.submitted:
     phone = st.session_state.phone
     pts = st.session_state.points
 
+    # -------- SUCCESS FLOW --------
     if st.session_state.success_msg:
 
         st.success("🎉 Payment Successful! +1 point added")
@@ -249,19 +188,13 @@ if st.session_state.submitted:
 🔥 Complete 5 → get FREE TEA ☕
 """)
 
-        updated_pts = st.session_state.points
-
         st.divider()
         st.subheader("🎁 Your Rewards")
 
-        st.progress(min(updated_pts / 5, 1.0))
-        st.write(f"🔥 {updated_pts}/5 points collected")
+        st.progress(min(pts / 5, 1.0))
+        st.write(f"🔥 {pts}/5 points collected")
 
-        remaining = max(0, 5 - updated_pts)
-
-        if remaining > 0:
-            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-        else:
+        if pts >= 5:
             st.success("🎉 FREE TEA unlocked!")
 
         time.sleep(10)
@@ -274,7 +207,9 @@ if st.session_state.submitted:
         st.session_state.pay_clicked = False
 
         st.rerun()
+        st.stop()
 
+    # -------- NORMAL FLOW --------
     if pts == 0:
         st.success("👋 Welcome! Start earning rewards 🎉")
     else:
@@ -284,14 +219,17 @@ if st.session_state.submitted:
 
         st.markdown("### 💸 Get your reward")
 
-        # ✅ TRACK PAY CLICK
-        if st.link_button("👉 Pay with UPI", UPI_LINK):
-            st.session_state.pay_clicked = True
+        st.link_button("👉 Pay with UPI", UPI_LINK)
 
         st.caption("💡 Complete payment using any UPI app")
+
+        # ✅ Enable flow button
+        if st.button("🔓 I have opened payment"):
+            st.session_state.pay_clicked = True
+
         st.caption("👇 After payment, click below")
 
-        # ✅ DISABLE UNTIL PAY CLICKED
+        # ✅ Controlled button
         if st.button("✅ I Paid", disabled=not st.session_state.pay_clicked):
 
             new_pts, allowed, remaining_time = update_points(phone)
@@ -304,6 +242,7 @@ if st.session_state.submitted:
                 st.session_state.success_msg = True
                 st.rerun()
 
+    # -------- REWARDS (ONLY ONCE) --------
     if not st.session_state.success_msg:
 
         st.divider()
