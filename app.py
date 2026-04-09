@@ -160,14 +160,14 @@ if st.session_state.submitted:
     phone = st.session_state.phone
     pts = st.session_state.points
 
-    # ✅ FIX: new vs old user
+    # ✅ New vs Returning user
     if pts == 0:
         st.success("👋 Welcome! Start earning rewards 🎉")
     else:
         st.success(f"👋 Welcome back! You have {pts} points")
 
     # ---------------- PAYMENT ----------------
-    if pts < 5 and not st.session_state.paid_clicked:
+    if pts < 5 and not st.session_state.success_msg:
 
         st.markdown("### 💸 Get your reward")
 
@@ -197,7 +197,13 @@ if st.session_state.submitted:
 🔥 Complete 5 → get FREE TEA ☕
 """)
 
-    # ---------------- REWARDS (FIXED NO DUPLICATE) ----------------
+        # 🔥 FIX: STOP OLD UI AFTER FREE TEA
+        if st.session_state.points >= 5:
+            st.success("🎉 FREE TEA unlocked!")
+            st.markdown("👉 Show this screen to shop owner ☕")
+            st.stop()
+
+    # ---------------- REWARDS (ONLY ONCE, UPDATED) ----------------
     if not st.session_state.success_msg:
 
         points = st.session_state.points
