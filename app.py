@@ -131,20 +131,27 @@ phone = st.text_input(
     "📱 Enter your number to check rewards",
     value=st.session_state.phone,
     placeholder="+91XXXXXXXXXX",
-    disabled=st.session_state.paid_clicked   # ✅ ONLY CHANGE
+    disabled=st.session_state.paid_clicked   # ✅ disabled after paid
 )
 
 phone_clean = clean_phone(phone)
 
 # ---------------- PAYMENT ----------------
 st.markdown("### 💸 Get your reward")
-st.link_button("👉 Pay with UPI", UPI_LINK)
+
+st.link_button(
+    "👉 Pay with UPI",
+    UPI_LINK,
+    disabled=st.session_state.paid_clicked   # ✅ disabled after paid
+)
 
 st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
 st.caption("👇 After payment, click below to collect your reward")
 
-if not st.session_state.paid_clicked:
-    if st.button("✅ I Paid"):
+# ✅ Button stays but gets disabled (no removal)
+if st.button("✅ I Paid", disabled=st.session_state.paid_clicked):
+
+    if not st.session_state.paid_clicked:
 
         if not can_click():
             st.error("⛔ Wait few seconds")
