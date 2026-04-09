@@ -2,7 +2,6 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
-import time
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -39,6 +38,10 @@ if "points" not in st.session_state:
 
 if "paid_clicked" not in st.session_state:
     st.session_state.paid_clicked = False
+
+# ✅ NEW (for permanent success message)
+if "success_msg" not in st.session_state:
+    st.session_state.success_msg = False
 
 
 # ---------------- CLEAN PHONE ----------------
@@ -130,7 +133,7 @@ if is_valid_phone(phone_clean):
         st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
         st.caption("👇 After payment, click below to collect your reward")
 
-        # ✅ DISABLE BUTTON AFTER CLICK
+        # ✅ BUTTON DISABLE
         paid_btn = st.button(
             "✅ I Paid",
             disabled=st.session_state.paid_clicked
@@ -143,17 +146,20 @@ if is_valid_phone(phone_clean):
             new_points = update_points(phone_clean)
             st.session_state.points = new_points
 
-            st.success("🎉 Payment Successful! +1 point added")
+            # ✅ STORE SUCCESS STATE (NO RERUN)
+            st.session_state.success_msg = True
 
-            st.markdown(f"""
-            **at {SHOP_NAME}**
 
-            ✅ You earned 1 point  
-            🔥 Complete 5 → get FREE TEA ☕
-            """)
+# ---------------- SUCCESS MESSAGE (PERMANENT) ----------------
+if st.session_state.success_msg:
+    st.success("🎉 Payment Successful! +1 point added")
 
-            time.sleep(2)
-            st.rerun()
+    st.markdown(f"""
+    **at {SHOP_NAME}**
+
+    ✅ You earned 1 point  
+    🔥 Complete 5 → get FREE TEA ☕
+    """)
 
 
 # ---------------- SHOW REWARDS ----------------
@@ -173,6 +179,7 @@ if st.session_state.phone:
         st.markdown(f"🔥 {remaining} more tea{'s' if remaining > 1 else ''} to get FREE TEA ☕")
     else:
         st.success("🎉 FREE TEA unlocked!")
+
 
 # ---------------- FOOTER ----------------
 st.markdown("<br>", unsafe_allow_html=True)
