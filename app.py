@@ -2,6 +2,7 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+import time
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
 
@@ -74,7 +75,6 @@ def update_points(phone):
         current = int(sheet.cell(row, 2).value)
         new_points = current + 1
 
-        # reset after free tea
         if new_points > 5:
             new_points = 1
 
@@ -134,7 +134,6 @@ if phone and is_valid_phone(phone):
     st.caption("💡 Complete payment using any UPI app (GPay / PhonePe / Paytm)")
     st.caption("👇 After payment, click below to collect your reward")
 
-    # AUTO HIDE BUTTON
     if not st.session_state.paid_clicked:
 
         if st.button("✅ I Paid"):
@@ -144,7 +143,7 @@ if phone and is_valid_phone(phone):
             new_points = update_points(phone)
             st.session_state.points = new_points
 
-            # SUCCESS UI
+            # 🎉 SUCCESS TEXT
             st.markdown(f"""
             ### 🎉 Payment Successful!
 
@@ -175,8 +174,19 @@ if phone and is_valid_phone(phone):
             </style>
             """, unsafe_allow_html=True)
 
-            st.balloons()
+            # 🎊 CONFETTI EFFECT (NEW)
+            st.markdown("""
+            <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+            <script>
+            confetti({
+                particleCount: 150,
+                spread: 100,
+                origin: { y: 0.6 }
+            });
+            </script>
+            """, unsafe_allow_html=True)
 
+            time.sleep(1)
             st.rerun()
 
 
