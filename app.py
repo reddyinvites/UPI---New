@@ -189,12 +189,9 @@ if st.session_state.end_screen:
 
     st.markdown(f"""
 ### 🎯 See you again!
-
 🔥 *{TAGLINE}*
-
 💸 Every tea = reward  
 🎁 Every 5 = FREE tea  
-
 👉 Come back soon & scan again  
 👉 More visits = more free chai ☕
 """)
@@ -208,13 +205,10 @@ if not st.session_state.submitted:
 
     st.markdown("""
 ### ☕ Welcome to RAVI TEA
-
 🔥 Morning kick chai that boosts your day  
-
 💸 Pay easily with UPI  
 🎁 Earn rewards on every tea  
 ☕ Complete 5 → Get 1 FREE  
-
 👇 Just enter your number & start earning
 """)
 
@@ -233,10 +227,7 @@ if not st.session_state.submitted:
             st.session_state.phone = phone
             st.session_state.points = get_user_data(phone)
             st.session_state.submitted = True
-
-            # 👉 reset timer when new user enters
             st.session_state.pay_time = None
-
             st.rerun()
         else:
             st.error("❌ Enter valid number (+91XXXXXXXXXX)")
@@ -254,25 +245,15 @@ if st.session_state.submitted:
 
         st.markdown(f"""
 **at {SHOP_NAME}**
-
 ✅ You earned 1 point  
 🔥 Complete 5 → get FREE TEA ☕
 """)
 
-        updated_pts = st.session_state.points
-
         st.divider()
         st.subheader("🎁 Your Rewards")
 
-        st.progress(min(updated_pts / 5, 1.0))
-        st.write(f"🔥 {updated_pts}/5 points collected")
-
-        remaining = max(0, 5 - updated_pts)
-
-        if remaining > 0:
-            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-        else:
-            st.success("🎉 FREE TEA unlocked!")
+        st.progress(min(pts / 5, 1.0))
+        st.write(f"🔥 {pts}/5 points collected")
 
         time.sleep(10)
 
@@ -282,68 +263,36 @@ if st.session_state.submitted:
         st.session_state.submitted = False
         st.session_state.end_screen = True
         st.session_state.pay_time = None
-
         st.rerun()
-
-    if pts == 0:
-        st.success("👋 Welcome! Start earning rewards 🎉")
-    else:
-        st.success(f"👋 Welcome back! You have {pts} points")
 
     if pts < 5:
 
         st.markdown("### 💸 Get your reward")
-
         st.link_button("👉 Pay with UPI", UPI_LINK)
 
         st.caption("💡 Complete payment using any UPI app")
         st.caption("👇 After payment, click below")
 
-        # 👉 AUTO TIMER START (smooth UX)
         if st.session_state.pay_time is None:
             st.session_state.pay_time = datetime.now()
 
-        can_click = False
+        diff = datetime.now() - st.session_state.pay_time
 
-        if st.session_state.pay_time:
-            diff = datetime.now() - st.session_state.pay_time
+        if diff.seconds < 30:
+            remaining = 30 - diff.seconds
+            st.warning(f"⏳ Please wait {remaining} seconds")
 
-            if diff.seconds >= 30:
-                can_click = True
-            else:
-                remaining = 30 - diff.seconds
-                st.warning(f"⏳ Please wait {remaining} seconds")
+            time.sleep(1)
+            st.rerun()
 
-        if not can_click:
             st.button("🔒 I Paid", disabled=True)
         else:
             if st.button("✅ I Paid"):
-
-                new_pts, allowed, remaining_time = update_points(phone)
-
-                if not allowed:
-                    mins = int(remaining_time.total_seconds() // 60)
-                    st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
-                else:
-                    st.session_state.points = new_pts
-                    st.session_state.success_msg = True
-                    st.session_state.pay_time = None
-                    st.rerun()
-
-    elif not st.session_state.success_msg:
-
-        st.divider()
-        st.subheader("🎁 Your Rewards")
-
-        st.progress(min(pts / 5, 1.0))
-        st.write(f"🔥 {pts}/5 points collected")
-
-        remaining = max(0, 5 - pts)
-
-        if remaining > 0:
-            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
-        else:
-            st.success("🎉 FREE TEA unlocked!")
+                new_pts, allowed, _ = update_points(phone)
+                st.session_state.points = new_pts
+                st.session_state.success_msg = True
+                st.session_state.pay_time = None
+                st.rerun()
 
 
 # ---------------- FOOTER ----------------
