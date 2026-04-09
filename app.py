@@ -172,6 +172,8 @@ if not st.session_state.submitted:
 # ---------------- MAIN FLOW ----------------
 if st.session_state.submitted:
 
+    st.empty()  # 🔥 FIX: remove duplicate render (new users)
+
     phone = st.session_state.phone
     pts = st.session_state.points
 
@@ -202,7 +204,6 @@ if st.session_state.submitted:
         else:
             st.success("🎉 FREE TEA unlocked!")
 
-        # ✅ WAIT + RESET + END SCREEN
         time.sleep(10)
 
         st.session_state.phone = ""
