@@ -46,7 +46,6 @@ if "success_msg" not in st.session_state:
 if "submitted" not in st.session_state:
     st.session_state.submitted = False
 
-# ✅ NEW
 if "end_screen" not in st.session_state:
     st.session_state.end_screen = False
 
@@ -96,16 +95,14 @@ st.divider()
 
 
 # =========================================================
-# 🟢 1. END SCREEN (AFTER RESET)
+# 🟢 END SCREEN (AFTER RESET)
 # =========================================================
 if st.session_state.end_screen:
 
     st.markdown(f"""
-    ### ☕ {SHOP_NAME}
+    ### 🎯 See you again!
 
     🔥 *{TAGLINE}*
-
-    🎯 **See you again!**
 
     💸 Every tea = reward  
     🎁 Every 5 = FREE tea  
@@ -115,13 +112,11 @@ if st.session_state.end_screen:
     """)
 
     st.caption("Powered by Your Startup 🚀")
-
-    # stop here
     st.stop()
 
 
 # =========================================================
-# 🟢 2. FIRST SCREEN (WELCOME + INPUT)
+# 🟢 WELCOME SCREEN
 # =========================================================
 if not st.session_state.submitted:
 
@@ -156,7 +151,7 @@ if not st.session_state.submitted:
 
 
 # =========================================================
-# 🟢 3. MAIN FLOW (REWARDS)
+# 🟢 MAIN FLOW
 # =========================================================
 if st.session_state.submitted:
 
@@ -199,7 +194,7 @@ if st.session_state.success_msg:
     """)
 
 
-# ---------------- REWARDS ----------------
+# ---------------- REWARDS (ONLY ONCE) ----------------
 if st.session_state.submitted:
 
     points = st.session_state.points
@@ -219,19 +214,17 @@ if st.session_state.submitted:
 
 
 # =========================================================
-# 🔁 AUTO RESET → SHOW END SCREEN
+# 🔁 AUTO RESET → SHOW END SCREEN (10 sec delay)
 # =========================================================
 if st.session_state.success_msg:
 
-    time.sleep(5)
+    time.sleep(10)
 
     st.session_state.phone = ""
     st.session_state.points = 0
     st.session_state.paid_clicked = False
     st.session_state.success_msg = False
     st.session_state.submitted = False
-
-    # ✅ SHOW END SCREEN
     st.session_state.end_screen = True
 
     st.rerun()
