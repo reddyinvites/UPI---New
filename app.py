@@ -66,6 +66,15 @@ def find_row(phone):
     return None
 
 
+# ---------------- AUTO LOAD USER ----------------
+def load_user(phone):
+    row = find_row(phone)
+    if row:
+        points = int(sheet.cell(row, 2).value)
+        st.session_state.phone = phone
+        st.session_state.points = points
+
+
 # ---------------- UPDATE POINTS ----------------
 def update_points(phone):
     phone = clean_phone(phone)
@@ -80,12 +89,15 @@ def update_points(phone):
             last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S")
             diff = now - last_time
 
-            # ⛔ COOLDOWN (2 hours)
             if diff < timedelta(hours=2):
                 remaining = timedelta(hours=2) - diff
                 return current_points, False, remaining
 
         new_points = current_points + 1
+
+        # 🔥 RESET AFTER 5
+        if new_points > 5:
+            new_points = 1
 
         sheet.update_cell(row, 2, new_points)
         sheet.update_cell(row, 3, now.strftime("%Y-%m-%d %H:%M:%S"))
@@ -93,15 +105,11 @@ def update_points(phone):
         return new_points, True, None
 
     else:
-        if find_row(phone):
-            return update_points(phone)
-
         sheet.append_row([
             phone,
             1,
             now.strftime("%Y-%m-%d %H:%M:%S")
         ])
-
         return 1, True, None
 
 
@@ -163,13 +171,17 @@ if st.session_state.paid:
 
     phone_clean = clean_phone(phone)
 
-    # 🔥 USE SESSION POINTS
+    # 🔥 AUTO LOAD
+    if phone_clean and is_valid_phone(phone_clean):
+        load_user(phone_clean)
+
     current_points = st.session_state.points
 
-    # ✅ IF ALREADY COMPLETED
+    # 🔒 BLOCK AFTER 5
     if current_points >= 5:
         st.success("🎉 FREE TEA unlocked!")
         st.markdown("👉 Show this screen to shop owner ☕")
+        st.info("☕ Claim your free tea before next payment")
 
     else:
         if st.button("💾 Save Rewards"):
@@ -200,12 +212,26 @@ if st.session_state.phone:
     st.progress(min(points / 5, 1.0))
     st.write(f"🔥 {points}/5 points collected")
 
-    remaining = max(0, 5 - points)
+    # 🔥 SMART MESSAGES
+    if points == 4:
+        st.info("🔥 Just 1 more tea for FREE reward!")
+    elif points < 5:
+        st.markdown(f"🔥 {5 - points} more teas to get FREE TEA ☕")
 
-    if remaining > 0:
-        st.markdown(f"🔥 Just {remaining} more tea{'s' if remaining > 1 else ''} to get FREE TEA ☕")
-    else:
+    if points >= 5:
         st.success("🎉 FREE TEA unlocked!")
+
+    # 🕒 LAST VISIT
+    row = find_row(st.session_state.phone)
+    if row:
+        last_time = sheet.cell(row, 3).value
+        if last_time:
+            st.caption(f"🕒 Last visit: {last_time}")
+
+
+# ---------------- ADMIN ----------------
+if st.text_input("🔑 Admin Key") == "1234":
+    st.dataframe(sheet.get_all_records())
 
 
 # ---------------- FOOTER ----------------
