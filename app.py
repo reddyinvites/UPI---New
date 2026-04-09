@@ -49,9 +49,9 @@ if "submitted" not in st.session_state:
 if "end_screen" not in st.session_state:
     st.session_state.end_screen = False
 
-# ✅ NEW (owner session)
-if "is_owner" not in st.session_state:
-    st.session_state.is_owner = False
+# ✅ NEW
+if "pay_time" not in st.session_state:
+    st.session_state.pay_time = None
 
 
 # ---------------- HELPERS ----------------
@@ -113,75 +113,10 @@ def update_points(phone):
         return 1, True, None
 
 
-# ---------------- DASHBOARD FIXED FUNCTION ----------------
-def get_dashboard_data():
-    data = sheet.get_all_records()
-
-    total_users = len(data)
-    total_points = 0
-    today_visits = 0
-
-    today = datetime.now().date()
-
-    for row in data:
-        pts = int(row.get("Points", 0))  # ✅ FIX
-        total_points += pts
-
-        last_time = row.get("Last Visit", "")  # ✅ FIX
-
-        if last_time:
-            try:
-                dt = datetime.strptime(last_time, "%Y-%m-%d %H:%M:%S")
-            except:
-                dt = datetime.strptime(last_time, "%Y-%m-%d %H:%M")
-
-            if dt.date() == today:
-                today_visits += 1
-
-    today_revenue = today_visits * 10
-
-    return total_users, total_points, today_visits, today_revenue
-
-
-# ---------------- OWNER LOGIN ----------------
-OWNER_PASSWORD = "admin123"
-
-with st.sidebar:
-    st.subheader("🔐 Owner Panel")
-    pwd = st.text_input("Enter Password", type="password")
-
-    if st.button("Login"):
-        if pwd == OWNER_PASSWORD:
-            st.session_state.is_owner = True
-            st.success("Logged in ✅")
-        else:
-            st.error("Wrong password ❌")
-
-
 # ---------------- HEADER ----------------
 st.markdown(f"## {SHOP_NAME}")
 st.write(TAGLINE)
 st.divider()
-
-
-# ---------------- OWNER DASHBOARD ONLY ----------------
-if st.session_state.is_owner:
-
-    st.markdown("## 📊 Dashboard")
-
-    users, points, visits, revenue = get_dashboard_data()
-
-    col1, col2 = st.columns(2)
-    col3, col4 = st.columns(2)
-
-    col1.metric("👥 Users", users)
-    col2.metric("🎯 Total Points", points)
-    col3.metric("🔥 Today Visits", visits)
-    col4.metric("💰 Today Revenue", f"₹{revenue}")
-
-    st.divider()
-
-    st.stop()  # ✅ BLOCK USER UI
 
 
 # ---------------- END SCREEN ----------------
@@ -278,6 +213,7 @@ if st.session_state.submitted:
         st.session_state.success_msg = False
         st.session_state.submitted = False
         st.session_state.end_screen = True
+        st.session_state.pay_time = None
 
         st.rerun()
 
@@ -295,17 +231,34 @@ if st.session_state.submitted:
         st.caption("💡 Complete payment using any UPI app")
         st.caption("👇 After payment, click below")
 
-        if st.button("✅ I Paid"):
+        # ⏳ Start timer when page loads first time
+        if st.session_state.pay_time is None:
+            st.session_state.pay_time = datetime.now()
 
-            new_pts, allowed, remaining_time = update_points(phone)
+        can_click = False
+        diff = datetime.now() - st.session_state.pay_time
 
-            if not allowed:
-                mins = int(remaining_time.total_seconds() // 60)
-                st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
-            else:
-                st.session_state.points = new_pts
-                st.session_state.success_msg = True
-                st.rerun()
+        if diff.seconds >= 30:
+            can_click = True
+        else:
+            remaining = 30 - diff.seconds
+            st.warning(f"⏳ Please wait {remaining} seconds")
+
+        if not can_click:
+            st.button("🔒 I Paid", disabled=True)
+        else:
+            if st.button("✅ I Paid"):
+
+                new_pts, allowed, remaining_time = update_points(phone)
+
+                if not allowed:
+                    mins = int(remaining_time.total_seconds() // 60)
+                    st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
+                else:
+                    st.session_state.points = new_pts
+                    st.session_state.success_msg = True
+                    st.session_state.pay_time = None
+                    st.rerun()
 
     elif not st.session_state.success_msg:
 
