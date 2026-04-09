@@ -49,6 +49,10 @@ if "submitted" not in st.session_state:
 if "end_screen" not in st.session_state:
     st.session_state.end_screen = False
 
+# ✅ NEW (Owner session)
+if "is_owner" not in st.session_state:
+    st.session_state.is_owner = False
+
 
 # ---------------- HELPERS ----------------
 def clean_phone(p):
@@ -109,10 +113,68 @@ def update_points(phone):
         return 1, True, None
 
 
+# ---------------- OWNER DASHBOARD FUNCTION ----------------
+def get_dashboard_data():
+    data = sheet.get_all_records()
+
+    total_users = len(data)
+    total_points = 0
+    today_visits = 0
+
+    today = datetime.now().date()
+
+    for row in data:
+        pts = int(row.get("points", 0))
+        total_points += pts
+
+        last_time = row.get("last_time", "")
+        if last_time:
+            dt = datetime.strptime(last_time, "%Y-%m-%d %H:%M:%S")
+            if dt.date() == today:
+                today_visits += 1
+
+    today_revenue = today_visits * 10
+
+    return total_users, total_points, today_visits, today_revenue
+
+
+# ---------------- OWNER LOGIN ----------------
+OWNER_PASSWORD = "admin123"
+
+with st.sidebar:
+    st.subheader("🔐 Owner Panel")
+    pwd = st.text_input("Enter Password", type="password")
+
+    if st.button("Login"):
+        if pwd == OWNER_PASSWORD:
+            st.session_state.is_owner = True
+            st.success("Logged in ✅")
+        else:
+            st.error("Wrong password ❌")
+
+
 # ---------------- HEADER ----------------
 st.markdown(f"## {SHOP_NAME}")
 st.write(TAGLINE)
 st.divider()
+
+
+# ---------------- OWNER DASHBOARD UI ----------------
+if st.session_state.is_owner:
+
+    st.markdown("## 📊 Dashboard")
+
+    users, points, visits, revenue = get_dashboard_data()
+
+    col1, col2 = st.columns(2)
+    col3, col4 = st.columns(2)
+
+    col1.metric("👥 Users", users)
+    col2.metric("🎯 Total Points", points)
+    col3.metric("🔥 Today Visits", visits)
+    col4.metric("💰 Today Revenue", f"₹{revenue}")
+
+    st.divider()
 
 
 # ---------------- END SCREEN ----------------
@@ -175,7 +237,6 @@ if st.session_state.submitted:
     phone = st.session_state.phone
     pts = st.session_state.points
 
-    # -------- SUCCESS FLOW --------
     if st.session_state.success_msg:
 
         st.success("🎉 Payment Successful! +1 point added")
@@ -202,7 +263,6 @@ if st.session_state.submitted:
         else:
             st.success("🎉 FREE TEA unlocked!")
 
-        # ✅ WAIT + RESET + END SCREEN
         time.sleep(10)
 
         st.session_state.phone = ""
@@ -214,7 +274,6 @@ if st.session_state.submitted:
 
         st.rerun()
 
-    # -------- NORMAL FLOW --------
     if pts == 0:
         st.success("👋 Welcome! Start earning rewards 🎉")
     else:
@@ -241,7 +300,6 @@ if st.session_state.submitted:
                 st.session_state.success_msg = True
                 st.rerun()
 
-    # -------- REWARDS (ONLY ONCE) --------
     elif not st.session_state.success_msg:
 
         st.divider()
