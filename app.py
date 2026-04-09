@@ -189,9 +189,12 @@ if st.session_state.end_screen:
 
     st.markdown(f"""
 ### 🎯 See you again!
+
 🔥 *{TAGLINE}*
+
 💸 Every tea = reward  
 🎁 Every 5 = FREE tea  
+
 👉 Come back soon & scan again  
 👉 More visits = more free chai ☕
 """)
@@ -205,10 +208,13 @@ if not st.session_state.submitted:
 
     st.markdown("""
 ### ☕ Welcome to RAVI TEA
+
 🔥 Morning kick chai that boosts your day  
+
 💸 Pay easily with UPI  
 🎁 Earn rewards on every tea  
 ☕ Complete 5 → Get 1 FREE  
+
 👇 Just enter your number & start earning
 """)
 
@@ -245,15 +251,25 @@ if st.session_state.submitted:
 
         st.markdown(f"""
 **at {SHOP_NAME}**
+
 ✅ You earned 1 point  
 🔥 Complete 5 → get FREE TEA ☕
 """)
 
+        updated_pts = st.session_state.points
+
         st.divider()
         st.subheader("🎁 Your Rewards")
 
-        st.progress(min(pts / 5, 1.0))
-        st.write(f"🔥 {pts}/5 points collected")
+        st.progress(min(updated_pts / 5, 1.0))
+        st.write(f"🔥 {updated_pts}/5 points collected")
+
+        remaining = max(0, 5 - updated_pts)
+
+        if remaining > 0:
+            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        else:
+            st.success("🎉 FREE TEA unlocked!")
 
         time.sleep(10)
 
@@ -265,14 +281,21 @@ if st.session_state.submitted:
         st.session_state.pay_time = None
         st.rerun()
 
+    if pts == 0:
+        st.success("👋 Welcome! Start earning rewards 🎉")
+    else:
+        st.success(f"👋 Welcome back! You have {pts} points")
+
     if pts < 5:
 
         st.markdown("### 💸 Get your reward")
+
         st.link_button("👉 Pay with UPI", UPI_LINK)
 
         st.caption("💡 Complete payment using any UPI app")
         st.caption("👇 After payment, click below")
 
+        # 👉 TIMER LOGIC (UI unchanged)
         if st.session_state.pay_time is None:
             st.session_state.pay_time = datetime.now()
 
@@ -286,13 +309,35 @@ if st.session_state.submitted:
             st.rerun()
 
             st.button("🔒 I Paid", disabled=True)
+
         else:
             if st.button("✅ I Paid"):
-                new_pts, allowed, _ = update_points(phone)
-                st.session_state.points = new_pts
-                st.session_state.success_msg = True
-                st.session_state.pay_time = None
-                st.rerun()
+
+                new_pts, allowed, remaining_time = update_points(phone)
+
+                if not allowed:
+                    mins = int(remaining_time.total_seconds() // 60)
+                    st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
+                else:
+                    st.session_state.points = new_pts
+                    st.session_state.success_msg = True
+                    st.session_state.pay_time = None
+                    st.rerun()
+
+    elif not st.session_state.success_msg:
+
+        st.divider()
+        st.subheader("🎁 Your Rewards")
+
+        st.progress(min(pts / 5, 1.0))
+        st.write(f"🔥 {pts}/5 points collected")
+
+        remaining = max(0, 5 - pts)
+
+        if remaining > 0:
+            st.write(f"🔥 {remaining} more teas to get FREE TEA ☕")
+        else:
+            st.success("🎉 FREE TEA unlocked!")
 
 
 # ---------------- FOOTER ----------------
