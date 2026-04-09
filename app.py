@@ -1,7 +1,7 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 
 st.set_page_config(page_title="Ravi Tea", layout="centered")
@@ -74,18 +74,39 @@ def get_user_data(phone):
     return 0
 
 
+# 🔥 UPDATED WITH COOLDOWN
 def update_points(phone):
     row = find_row(phone)
     now = datetime.now()
 
+    COOLDOWN_HOURS = 3
+
     if row:
-        pts = int(sheet.cell(row, 2).value) + 1
-        sheet.update_cell(row, 2, pts)
+        current_points = int(sheet.cell(row, 2).value)
+        last_time_str = sheet.cell(row, 3).value
+
+        if last_time_str:
+            last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S")
+            diff = now - last_time
+
+            if diff < timedelta(hours=COOLDOWN_HOURS):
+                remaining = timedelta(hours=COOLDOWN_HOURS) - diff
+                return current_points, False, remaining
+
+        new_points = current_points + 1
+
+        sheet.update_cell(row, 2, new_points)
         sheet.update_cell(row, 3, now.strftime("%Y-%m-%d %H:%M:%S"))
-        return pts
+
+        return new_points, True, None
+
     else:
-        sheet.append_row([phone, 1, now.strftime("%Y-%m-%d %H:%M:%S")])
-        return 1
+        sheet.append_row([
+            phone,
+            1,
+            now.strftime("%Y-%m-%d %H:%M:%S")
+        ])
+        return 1, True, None
 
 
 # ---------------- HEADER ----------------
@@ -94,9 +115,7 @@ st.write(TAGLINE)
 st.divider()
 
 
-# =========================================================
-# 🟢 END SCREEN
-# =========================================================
+# ---------------- END SCREEN ----------------
 if st.session_state.end_screen:
 
     st.markdown(f"""
@@ -115,9 +134,7 @@ if st.session_state.end_screen:
     st.stop()
 
 
-# =========================================================
-# 🟢 WELCOME SCREEN
-# =========================================================
+# ---------------- WELCOME ----------------
 if not st.session_state.submitted:
 
     st.markdown("""
@@ -152,15 +169,12 @@ if not st.session_state.submitted:
             st.error("❌ Enter valid number (+91XXXXXXXXXX)")
 
 
-# =========================================================
-# 🟢 MAIN FLOW (NO DUPLICATES)
-# =========================================================
+# ---------------- MAIN FLOW ----------------
 if st.session_state.submitted:
 
     phone = st.session_state.phone
     pts = st.session_state.points
 
-    # -------- SUCCESS FLOW --------
     if st.session_state.success_msg:
 
         st.success("🎉 Payment Successful! +1 point added")
@@ -188,7 +202,6 @@ if st.session_state.submitted:
             st.success("🎉 FREE TEA unlocked!")
 
     else:
-        # -------- NORMAL FLOW --------
         if pts == 0:
             st.success("👋 Welcome! Start earning rewards 🎉")
         else:
@@ -204,14 +217,17 @@ if st.session_state.submitted:
             st.caption("👇 After payment, click below")
 
             if st.button("✅ I Paid"):
-                new_pts = update_points(phone)
 
-                st.session_state.points = new_pts
-                st.session_state.success_msg = True
+                points, allowed, remaining_time = update_points(phone)
 
-                st.rerun()
+                if not allowed:
+                    mins = int(remaining_time.total_seconds() // 60)
+                    st.warning(f"⏳ Come back in {mins} mins for next reward ☕")
+                else:
+                    st.session_state.points = points
+                    st.session_state.success_msg = True
+                    st.rerun()
 
-        # -------- REWARDS --------
         st.divider()
         st.subheader("🎁 Your Rewards")
 
@@ -226,9 +242,7 @@ if st.session_state.submitted:
             st.success("🎉 FREE TEA unlocked!")
 
 
-# =========================================================
-# 🔁 AUTO RESET AFTER 10 SEC
-# =========================================================
+# ---------------- RESET ----------------
 if st.session_state.success_msg:
 
     time.sleep(10)
